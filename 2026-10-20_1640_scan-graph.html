@@ -1,0 +1,2038 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-ZpxOBdACMUpdRhxjvC7pYNkp+QyH03xagb2o7u8Mz54=' 'sha256-0be8S0M7/8PjmsYGf20f6nVpcTAb+qVEAWP+AKQWrCg='; base-uri 'none'; form-action 'none'"><meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>scan 結果</title>
+<style>
+/* スクロールのアンカーは使わない。描き直しの途中で Chrome がアンカーを選び直し、画面が跳ねるため（押した場所は JS で保つ） */
+html, body { margin: 0; background: #f4f3ef; overflow-anchor: none; }
+/* カードで html を止めてスクロールバーが消えても幅を変えない（幅が変わると描き直しで開く動きが切れる） */
+html { scrollbar-gutter: stable; }
+@media (prefers-color-scheme: dark) { html, body { background: #111110; } }
+/* ===== scan 結果画面 ===== */
+/* 色の変数。今の画面の --fg --bg --muted --line --accent --ok --warn --bad --soft を引き継ぐ */
+.scan-root{
+  color-scheme: light;
+  --bg:#f4f3ef; --surface:#ffffff; --fg:#1b1a18; --fg2:#46443f; --muted:#64625d;
+  --line:#e3e1db; --line2:#cfccc4; --soft:#efeee9; --soft2:#e6e4de;
+  --accent:#1f5fc4; --ok:#1c7a3c;
+  --warn:#8a5200; --warn-bg:#fff4d9; --warn-line:#e7b54a; --hype:#e0a01e;
+  --bad:#6a3bc4; --bad-bg:#f2ecff; --bad-line:#c6b2f2;
+  /* 上昇率の色（赤の単色、濃いほど強い） */
+  --h1:#f09e8d; --h2:#e3735f; --h3:#c8452f; --h4:#a12a1d; --h5:#6e170f;
+  --e1:#d97a68; --e2:#c8452f; --e3:#a12a1d; --e4:#6e170f; --e5:#450c06;
+  --t1:#2a0a05; --t2:#2a0a05; --t3:#ffffff; --t4:#ffffff; --t5:#ffffff;
+  --hatch:rgba(255,255,255,.62);
+  /* ローソク足：陽線は赤、陰線は青 */
+  --up:#c8452f; --down:#2f63b8; --up-v:#e8a091; --down-v:#9db7e0;
+  /* 点の内訳 B1〜B5（検証済みの並び） */
+  --b1:#2a78d6; --b2:#1baf7a; --b3:#eda100; --b4:#6250d6; --b5:#008300;
+  --ex:#8b8881; --btn-bg:#1b1a18; --btn-fg:#ffffff;
+  --shadow:0 12px 40px rgba(20,18,14,.18);
+}
+@media (prefers-color-scheme: dark){
+  .scan-root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#111110; --surface:#1a1a19; --fg:#edece8; --fg2:#cfcdc6; --muted:#a3a19a;
+    --line:#2f2e2b; --line2:#45433f; --soft:#242422; --soft2:#2c2b29;
+    --accent:#7aa8ff; --ok:#4cc06d;
+    --warn:#f2b84b; --warn-bg:#2b2312; --warn-line:#7a5a1c; --hype:#d0952a;
+    --bad:#b99cff; --bad-bg:#231c33; --bad-line:#55408a;
+    --h1:#87352c; --h2:#ab3c2e; --h3:#d6523b; --h4:#f06a4e; --h5:#ffa083;
+    --e1:#a8463a; --e2:#c8523f; --e3:#ef6a52; --e4:#ff9478; --e5:#ffc2ae;
+    --t1:#fff1ed; --t2:#fff1ed; --t3:#1a0502; --t4:#1a0502; --t5:#1a0502;
+    --hatch:rgba(26,26,25,.58);
+    --up:#f06a4e; --down:#6f9ff0; --up-v:#8a3a2f; --down-v:#34507e;
+    --b1:#3987e5; --b2:#199e70; --b3:#c98500; --b4:#9085e9; --b5:#008300;
+    --ex:#86847d; --btn-bg:#edece8; --btn-fg:#141413;
+    --shadow:0 12px 40px rgba(0,0,0,.55);
+  }
+}
+.scan-root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#111110; --surface:#1a1a19; --fg:#edece8; --fg2:#cfcdc6; --muted:#a3a19a;
+  --line:#2f2e2b; --line2:#45433f; --soft:#242422; --soft2:#2c2b29;
+  --accent:#7aa8ff; --ok:#4cc06d;
+  --warn:#f2b84b; --warn-bg:#2b2312; --warn-line:#7a5a1c; --hype:#d0952a;
+  --bad:#b99cff; --bad-bg:#231c33; --bad-line:#55408a;
+  --h1:#87352c; --h2:#ab3c2e; --h3:#d6523b; --h4:#f06a4e; --h5:#ffa083;
+  --e1:#a8463a; --e2:#c8523f; --e3:#ef6a52; --e4:#ff9478; --e5:#ffc2ae;
+  --t1:#fff1ed; --t2:#fff1ed; --t3:#1a0502; --t4:#1a0502; --t5:#1a0502;
+  --hatch:rgba(26,26,25,.58);
+  --up:#f06a4e; --down:#6f9ff0; --up-v:#8a3a2f; --down-v:#34507e;
+  --b1:#3987e5; --b2:#199e70; --b3:#c98500; --b4:#9085e9; --b5:#008300;
+  --ex:#86847d; --btn-bg:#edece8; --btn-fg:#141413;
+  --shadow:0 12px 40px rgba(0,0,0,.55);
+}
+
+.scan-root{
+  container: scan / inline-size;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size:14px; line-height:1.5; color:var(--fg); background:var(--bg);
+  min-height:100vh; -webkit-text-size-adjust:100%; text-size-adjust:100%;
+}
+.scan-root *, .scan-root *::before, .scan-root *::after{ box-sizing:border-box }
+.scan-root button{ font:inherit; color:inherit }
+.scan-root a{ color:inherit }
+.scan-root :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px }
+.scan-root .num{ font-variant-numeric: tabular-nums }
+.scan-root .ic{ flex:none; display:block }
+.sc-vh{ position:absolute!important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap }
+
+.sc-wrap{ max-width:1100px; margin:0 auto; padding:16px 16px 56px; display:flex; flex-direction:column; gap:16px }
+.sc-sec{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; min-width:0 }
+.sc-sec > h2, .sc-h2{ margin:0; font-size:16px; line-height:1.35; font-weight:700; letter-spacing:.01em }
+.sc-sub{ margin:2px 0 0; color:var(--muted); font-size:12.5px }
+.sc-head{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:10px 16px; margin-bottom:12px }
+.sc-head > div:first-child{ min-width:0 }
+@container scan (max-width: 520px){
+  .sc-wrap{ padding:10px 10px 48px; gap:12px }
+  .sc-sec{ padding:12px; border-radius:12px }
+}
+
+/* ボタン */
+.sc-btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:0 14px;
+  border:1px solid var(--line2); border-radius:10px; background:var(--surface); font-weight:600; font-size:13.5px;
+  cursor:pointer; text-decoration:none; white-space:nowrap }
+.sc-btn:hover{ background:var(--soft) }
+.sc-btn.ink{ background:var(--btn-bg); color:var(--btn-fg); border-color:var(--btn-bg) }
+.sc-btn.ink:hover{ filter:brightness(1.15); background:var(--btn-bg) }
+.sc-btn.sm{ min-height:44px; padding:0 11px; font-size:12.5px }
+/* 切り替えのボタン（除外を隠す）。押している間は黒く塗る */
+.sc-btn.tg .ic{ color:var(--muted) }
+.sc-btn.tg[aria-pressed="true"]{ background:var(--btn-bg); color:var(--btn-fg); border-color:var(--btn-bg) }
+.sc-btn.tg[aria-pressed="true"] .ic{ color:inherit }
+.sc-btn.tg[aria-pressed="true"]:hover{ filter:brightness(1.15) }
+.sc-seg{ display:inline-flex; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:2px; gap:2px; max-width:100% }
+.sc-seg button{ min-height:44px; padding:0 14px; border:0; background:transparent; border-radius:10px; font-weight:600; font-size:13px; color:var(--fg2); cursor:pointer; white-space:nowrap }
+.sc-seg button[aria-pressed="true"]{ background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12), 0 0 0 1px var(--line2) }
+.sc-seg button:hover:not([aria-pressed="true"]){ color:var(--fg) }
+
+/* 印 */
+.sc-tag{ display:inline-flex; align-items:center; gap:3px; height:20px; padding:0 6px; border-radius:6px; font-size:11px; font-weight:700; line-height:1; white-space:nowrap; background:var(--soft2); color:var(--fg2) }
+.sc-tag.s{ background:var(--fg); color:var(--surface) }
+.sc-tag.pts{ background:transparent; box-shadow:inset 0 0 0 1px var(--line2); color:var(--fg2) }
+.sc-tag.warn{ background:var(--warn-bg); color:var(--warn); box-shadow:inset 0 0 0 1px var(--warn-line) }
+.sc-tag.bad{ background:var(--bad-bg); color:var(--bad); box-shadow:inset 0 0 0 1px var(--bad-line) }
+
+/* 上昇率の色見本 */
+.sc-legend{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; font-size:12px; color:var(--fg2) }
+.sc-legend .it{ display:inline-flex; align-items:center; gap:5px; white-space:nowrap }
+.sc-ramp{ display:inline-flex; align-items:flex-start; gap:8px }
+.sc-ramp > span:first-child{ line-height:12px; padding-top:1px }
+.sc-ramp .sw{ display:flex; gap:2px }
+.sc-ramp .sw i{ display:block; width:42px; height:12px; border-radius:2px }
+.sc-ramp .lb{ display:flex; gap:2px; font-size:10.5px; color:var(--muted); line-height:1.3; margin-top:2px; font-variant-numeric:tabular-nums }
+.sc-ramp .lb span{ width:42px; text-align:center; white-space:nowrap }
+.sc-rampbox{ display:flex; flex-direction:column; gap:2px }
+.b0bg{ background:var(--h1) } .b1bg{ background:var(--h2) } .b2bg{ background:var(--h3) } .b3bg{ background:var(--h4) } .b4bg{ background:var(--h5) }
+.hatchbg{ background-color:var(--h3); background-image:repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 5px) }
+
+/* ===== 概要の帯 ===== */
+.sc-band{ display:grid; grid-template-columns: minmax(0,1fr) minmax(300px, 440px); gap:16px 28px; align-items:center }
+@container scan (max-width: 760px){ .sc-band{ grid-template-columns: minmax(0,1fr) } }
+.sc-kicker{ margin:0; font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.06em }
+.sc-date{ margin:2px 0 4px; font-size:24px; line-height:1.25; font-weight:750 }
+.sc-date small{ font-size:14px; font-weight:600; color:var(--muted); margin-left:6px }
+.sc-meta{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; color:var(--fg2); font-size:13px }
+.sc-meta .dot{ color:var(--line2) }
+.sc-funnel{ display:grid; grid-template-columns: auto minmax(0,1fr) auto; gap:5px 10px; align-items:center; font-size:12.5px }
+.sc-funnel .lb{ color:var(--fg2); white-space:nowrap }
+.sc-funnel .tr{ height:8px; border-radius:4px; background:var(--soft); overflow:hidden }
+.sc-funnel .tr i{ display:block; height:100%; border-radius:0 4px 4px 0 }
+.sc-funnel .v{ font-size:15px; font-weight:700; text-align:right; min-width:2.6em }
+.sc-funnel .f0 i{ background:var(--line2) } .sc-funnel .f1 i{ background:var(--muted) } .sc-funnel .f2 i{ background:var(--fg) }
+.sc-funnel .ft{ grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:4px 12px; color:var(--muted); font-size:12px; margin-top:2px }
+.sc-funnel .ft a{ color:var(--fg2); text-underline-offset:2px }
+.sc-warns{ display:flex; flex-direction:column; gap:8px; margin-top:14px }
+.sc-warn{ display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:10px; background:var(--warn-bg); border:1px solid var(--warn-line); color:var(--fg); font-size:13.5px }
+.sc-warn .ic{ color:var(--warn); margin-top:2px }
+.sc-warn b{ color:var(--warn); margin-right:6px }
+
+/* 絞り込み中の帯 */
+.sc-selbar{ position:sticky; top:0; z-index:30; margin:0; padding:8px 16px; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border-bottom:1px solid var(--line) }
+.sc-selbar[hidden]{ display:none }
+.sc-selbar .in{ max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+.sc-selbar .lb{ font-size:12px; color:var(--muted); font-weight:700 }
+.sc-selbar .path{ font-weight:700; font-size:14px; min-width:0; display:flex; align-items:center; gap:4px; flex-wrap:wrap }
+.sc-selbar .path .ic{ color:var(--muted) }
+.sc-selbar .cnt{ font-size:12.5px; color:var(--fg2) }
+.sc-selbar .sp{ flex:1 }
+@container scan (max-width: 520px){ .sc-selbar{ padding:6px 10px } .sc-selbar .in{ gap:4px 10px } }
+
+/* ===== 散布図 ===== */
+.sp-wrap{ position:relative }
+.sp-svg{ display:block; width:100%; height:auto; touch-action:manipulation; user-select:none; -webkit-user-select:none }
+.sp-svg .grid line{ stroke:var(--line); stroke-width:1 }
+.sp-svg .ax text{ fill:var(--muted); font-size:11px; font-variant-numeric:tabular-nums }
+.sp-svg .ax .ttl{ fill:var(--fg2); font-size:11.5px; font-weight:600 }
+.sp-svg .thr line{ stroke:var(--fg2); stroke-width:1.2; stroke-dasharray:5 4; opacity:.75 }
+.sp-svg .thr text{ fill:var(--fg2); font-size:10.5px; font-weight:600; paint-order:stroke; stroke:var(--surface); stroke-width:3px; stroke-linejoin:round }
+.sp-svg .pt{ transition:opacity .15s }
+.sp-svg .pt.c{ stroke-width:1.25 }
+.sp-svg .pt.c.b0{ fill:var(--h1); stroke:var(--e1) } .sp-svg .pt.c.b1{ fill:var(--h2); stroke:var(--e2) }
+.sp-svg .pt.c.b2{ fill:var(--h3); stroke:var(--e3) } .sp-svg .pt.c.b3{ fill:var(--h4); stroke:var(--e4) }
+.sp-svg .pt.c.b4{ fill:var(--h5); stroke:var(--e5) }
+.sp-svg .pt.x{ fill:none; stroke:var(--ex); stroke-width:1.3; opacity:.72 }
+.sp-svg .pt.dim, .sp-svg .smk.dim{ opacity:.09 }
+.sp-svg .smk{ font-size:9.5px; font-weight:800; fill:var(--fg); paint-order:stroke; stroke:var(--surface); stroke-width:2.6px; stroke-linejoin:round; pointer-events:none }
+.sp-svg .lbl{ font-size:11px; font-weight:600; fill:var(--fg); paint-order:stroke; stroke:var(--surface); stroke-width:3.2px; stroke-linejoin:round; pointer-events:none }
+.sp-svg .hov{ fill:none; stroke:var(--fg); stroke-width:1.5; pointer-events:none }
+.sp-svg .onr{ fill:none; stroke:var(--accent); stroke-width:2.5; pointer-events:none }
+.sp-svg .hit{ fill:transparent; cursor:pointer }
+.sp-leg{ display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; font-size:12px; color:var(--fg2); margin:0 0 10px }
+.sp-leg .it{ display:inline-flex; align-items:center; gap:5px; white-space:nowrap }
+.sp-leg svg{ display:block; overflow:visible }
+.sp-leg .g{ display:inline-flex; gap:12px; flex-wrap:wrap }
+.sp-note{ margin:8px 0 0; font-size:12px; color:var(--muted) }
+
+/* 吹き出し */
+.sc-tip{ position:fixed; z-index:80; pointer-events:none; max-width:260px; padding:8px 10px; border-radius:10px; background:var(--surface); border:1px solid var(--line2); box-shadow:var(--shadow); font-size:12px; line-height:1.45 }
+.sc-tip[hidden]{ display:none }
+.sc-tip .t{ font-weight:700; font-size:13px }
+.sc-tip .m{ color:var(--muted) }
+.sc-tip .r{ display:flex; gap:10px; flex-wrap:wrap; margin-top:3px; font-variant-numeric:tabular-nums }
+.sc-tip .r b{ font-size:13px }
+
+/* ===== ヒートマップ ===== */
+.hm-ctrl{ display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; justify-content:space-between; margin-bottom:12px }
+.hm-tg{ display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; max-width:100% }
+.hm-body{ position:relative }
+.tm{ position:relative; width:100% }
+.tm-g{ position:absolute; background:var(--soft); border-radius:8px; overflow:hidden }
+.tm-g.sel{ box-shadow:inset 0 0 0 2px var(--fg) }
+.tm-g.other, .hr.other{ background:transparent; box-shadow:inset 0 0 0 1.5px var(--line2) }
+.tm-g.other .tm-gn, .hr.other .tm-gn{ color:var(--fg2) }
+.tm-g.other.sel, .hr.other.sel{ box-shadow:inset 0 0 0 2px var(--fg) }
+.tm-gh{ position:absolute; left:0; top:0; right:0; height:44px; display:flex; align-items:center; gap:6px; padding:4px 6px 4px 9px; border:0; background:transparent; text-align:left; cursor:pointer; min-width:0 }
+.tm-gh:hover{ background:var(--soft2) }
+.tm-gh .tx{ display:flex; flex-direction:column; min-width:0; flex:1 }
+.tm-gn{ font-weight:700; font-size:12.5px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.tm-gs{ font-size:11px; line-height:1.3; color:var(--fg2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums }
+.tm-gh .ic{ color:var(--muted) }
+.scan-root .tm-t{ position:absolute; margin:0; padding:3px 4px 2px; border:0; border-radius:3px; cursor:pointer; overflow:hidden; text-align:left;
+  display:flex; flex-direction:column; justify-content:flex-start; color:var(--tc); line-height:1.2; transition:opacity .15s }
+.tm-t.b0{ background-color:var(--h1); --tc:var(--t1) } .tm-t.b1{ background-color:var(--h2); --tc:var(--t2) }
+.tm-t.b2{ background-color:var(--h3); --tc:var(--t3) } .tm-t.b3{ background-color:var(--h4); --tc:var(--t4) }
+.tm-t.b4{ background-color:var(--h5); --tc:var(--t5) }
+.tm-t.ex{ background-image:repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 5px) }
+.tm-t .n{ display:block; font-size:11px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100% }
+.tm-t .r{ display:block; font-size:10.5px; font-weight:600; white-space:nowrap; overflow:hidden; font-variant-numeric:tabular-nums; opacity:.92 }
+.tm-t.ex .n, .tm-t.ex .r{ text-shadow:0 0 3px var(--hcs, transparent) }
+.tm-t .sbg{ position:absolute; right:2px; top:2px; width:14px; height:14px; border-radius:3px; background:var(--fg); color:var(--surface); font-size:10px; font-weight:800; line-height:14px; text-align:center }
+.tm-t.has-s .n{ padding-right:14px }
+.tm-t.dim{ opacity:.16 }
+.tm-t.on{ outline:2.5px solid var(--accent); outline-offset:-2.5px; z-index:3 }
+.tm-t:hover{ filter:saturate(1.15) brightness(1.04); z-index:2 }
+.tm-t:focus-visible{ outline:2.5px solid var(--accent); outline-offset:-2.5px; z-index:4; border-radius:3px }
+
+/* スマホ：業種を縦に並べる */
+.hr-list{ display:flex; flex-direction:column; gap:10px }
+.hr{ background:var(--soft); border-radius:10px; overflow:hidden }
+.hr.sel{ box-shadow:inset 0 0 0 2px var(--fg) }
+.hr-h{ display:flex; align-items:center; gap:8px; width:100%; min-height:44px; padding:4px 8px 4px 10px; border:0; background:transparent; text-align:left; cursor:pointer }
+.hr-h:hover{ background:var(--soft2) }
+.hr-h .tx{ flex:1; min-width:0; display:flex; align-items:baseline; gap:2px 8px; flex-wrap:wrap }
+.hr-h .tm-gn{ font-size:13.5px }
+.hr-h .tm-gs{ font-size:11.5px }
+.hr-h .ic{ color:var(--muted) }
+.hr-b{ position:relative; margin:0 3px 3px }
+
+/* 深掘り */
+.dr-top{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px }
+.dr-top h3{ margin:0; font-size:18px; line-height:1.3 }
+.dr-top p{ margin:0; font-size:12.5px; color:var(--fg2) }
+.dr-sec-t{ display:flex; flex-wrap:wrap; gap:2px 10px; align-items:baseline; margin:0 0 6px }
+.dr-sec-t h4{ margin:0; font-size:13.5px }
+.dr-sec-t span{ font-size:12px; color:var(--muted) }
+.br-list{ display:flex; flex-direction:column; gap:2px; margin-bottom:18px }
+.br{ display:grid; grid-template-columns: minmax(110px, 180px) minmax(0,1fr) 46px 84px 92px; align-items:center; gap:4px 10px;
+  width:100%; min-height:44px; padding:4px 8px; border:0; border-radius:8px; background:transparent; text-align:left; cursor:pointer }
+.br:hover{ background:var(--soft) }
+.br[aria-pressed="true"]{ background:var(--soft); box-shadow:inset 0 0 0 2px var(--fg) }
+.br .n{ font-weight:650; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.br .bar{ height:14px; background:var(--soft2); border-radius:3px; overflow:hidden }
+.br .bar i{ display:block; height:100%; border-radius:0 4px 4px 0 }
+.br .c{ text-align:right; font-weight:700; font-size:13px }
+.br .a{ display:flex; align-items:center; gap:5px; justify-content:flex-end; font-size:12.5px; font-weight:600 }
+.br .a i{ width:10px; height:10px; border-radius:2px; flex:none }
+.br .s{ text-align:right; font-size:12.5px; color:var(--fg2) }
+.br-head{ display:grid; grid-template-columns: minmax(110px, 180px) minmax(0,1fr) 46px 84px 92px; gap:10px; padding:0 8px; font-size:11px; color:var(--muted) }
+.br-head span:nth-child(n+3){ text-align:right }
+@container scan (max-width: 640px){
+  .br{ grid-template-columns: minmax(0,1fr) auto auto; grid-template-areas:"n n c" "bar a s"; row-gap:3px; padding:6px 8px }
+  .br .n{ grid-area:n } .br .bar{ grid-area:bar } .br .c{ grid-area:c } .br .a{ grid-area:a } .br .s{ grid-area:s; min-width:64px }
+  .br-head{ display:none }
+}
+.dr-hint{ font-size:12px; color:var(--muted); margin:6px 0 0 }
+
+/* ===== 候補の一覧 ===== */
+.ls-ctrl{ display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center }
+.ls-ctrl .lb{ font-size:12.5px; color:var(--fg2); font-weight:700 }
+.ls-filt{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--fg2); margin:-4px 0 10px }
+.ls-th{ display:none }
+.ls-key{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; font-size:12px; color:var(--fg2); margin:0 0 10px }
+.ls-key .lb{ font-weight:700 }
+.ls-key .it{ display:inline-flex; align-items:center; gap:5px }
+.ls-key i{ width:12px; height:8px; border-radius:2px }
+.ls-key .nt{ color:var(--muted) }
+.ls{ display:flex; flex-direction:column }
+.lr{ position:relative; display:grid; gap:4px 12px; align-items:center; padding:8px 6px; border-top:1px solid var(--line) }
+.lr:first-child{ border-top:0 }
+.lr:hover{ background:var(--soft) }
+.lr.on{ background:var(--soft); box-shadow:inset 3px 0 0 var(--accent) }
+.lr > *{ position:relative; z-index:1; pointer-events:none; min-width:0 }
+.lr .hit{ position:absolute; inset:0; z-index:0; pointer-events:auto; border:0; background:transparent; cursor:pointer; border-radius:0 }
+.lr .fl{ pointer-events:auto; z-index:2 }
+.lr .rk{ font-weight:700; color:var(--muted); font-size:12.5px; text-align:right }
+.lr .nm{ display:flex; flex-direction:column; min-width:0 }
+.lr .nm b{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.lr .nm small{ display:flex; gap:4px 6px; flex-wrap:wrap; align-items:center; color:var(--muted); font-size:11.5px }
+.lr .sk{ display:block }
+.lr .mt{ display:flex; flex-direction:column; gap:3px }
+.lr .mt .v{ display:flex; align-items:center; gap:4px; font-weight:700; font-size:13px; white-space:nowrap }
+.lr .mt .tr{ height:6px; border-radius:3px; background:var(--soft2); overflow:hidden }
+.lr .mt .tr i{ display:block; height:100%; border-radius:0 3px 3px 0 }
+.lr .mt .tr i.tv{ background:var(--fg2) }
+.lr .cap{ font-size:12.5px; text-align:right; color:var(--fg2); white-space:nowrap }
+.lr .sc{ display:flex; align-items:center; gap:8px }
+.lr .sc b{ font-size:14px; min-width:2ch; text-align:right }
+.lr .fl{ justify-self:end }
+.ls-empty{ padding:28px 12px; text-align:center; color:var(--fg2); background:var(--soft); border-radius:10px; font-weight:600 }
+/* スマホ：1銘柄1枚 */
+.lr{ grid-template-columns: 22px 88px minmax(0,1fr) minmax(0,1fr); grid-template-areas: "rk nm nm fl" "rk sk ra tu" "rk sc sc sc" }
+.lr .rk{ grid-area:rk; align-self:start; padding-top:2px } .lr .nm{ grid-area:nm } .lr .fl{ grid-area:fl }
+.lr .sk{ grid-area:sk } .lr .ra{ grid-area:ra } .lr .tu{ grid-area:tu } .lr .cap{ display:none } .lr .sc{ grid-area:sc }
+.lr .sc svg{ flex:1; min-width:0 }
+.lr .capi{ display:inline }
+/* PC：表の形 */
+@container scan (min-width: 880px){
+  .ls-th{ display:grid; gap:12px; padding:0 6px 6px; font-size:11px; color:var(--muted); border-bottom:1px solid var(--line);
+    grid-template-columns: 30px minmax(150px,1.5fr) 96px minmax(108px,1fr) minmax(108px,1fr) 70px 150px 92px }
+  .ls-th span:nth-child(6){ text-align:right }
+  .lr{ grid-template-columns: 30px minmax(150px,1.5fr) 96px minmax(108px,1fr) minmax(108px,1fr) 70px 150px 92px;
+    grid-template-areas: "rk nm sk ra tu cap sc fl"; padding:4px 6px }
+  .lr .rk{ align-self:center; padding-top:0 }
+  .lr .cap{ display:block; grid-area:cap }
+  .lr .capi{ display:none }
+  .lr .sc svg{ flex:none }
+}
+
+/* ===== 除外 ===== */
+.ex-d > summary{ list-style:none; display:flex; align-items:center; gap:10px; cursor:pointer; min-height:44px; margin:-6px 0 }
+.ex-d > summary::-webkit-details-marker{ display:none }
+.ex-d > summary .ic{ transition:transform .15s; color:var(--muted) }
+.ex-d[open] > summary .ic{ transform:rotate(90deg) }
+.ex-d > summary h2{ margin:0; font-size:16px }
+.ex-d > summary .cnt{ color:var(--fg2); font-size:13px }
+.ex-in{ margin-top:14px }
+.ex-bars{ display:flex; flex-direction:column; gap:2px; max-width:640px }
+.ex-b{ display:grid; grid-template-columns: minmax(150px, 210px) minmax(0,1fr) 52px; gap:10px; align-items:center; width:100%; min-height:44px; padding:2px 8px; border:0; background:transparent; border-radius:8px; cursor:pointer; text-align:left }
+.ex-b:hover{ background:var(--soft) }
+.ex-b[aria-pressed="true"]{ background:var(--soft); box-shadow:inset 0 0 0 2px var(--fg) }
+.ex-b .n{ font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; white-space:nowrap }
+.ex-b .n small{ color:var(--muted); font-weight:600 }
+.ex-b .bar{ height:10px; border-radius:3px; background:var(--soft2); overflow:hidden }
+.ex-b .bar i{ display:block; height:100%; background:var(--fg2); border-radius:0 3px 3px 0 }
+.ex-b.bad .bar i{ background:var(--bad) }
+.ex-b.bad .n{ color:var(--bad) }
+.ex-b .c{ text-align:right; font-weight:700 }
+.ex-note{ font-size:12px; color:var(--muted); margin:6px 0 14px 8px }
+.ex-rows{ display:flex; flex-direction:column }
+.xr{ position:relative; display:grid; gap:2px 12px; align-items:center; padding:9px 6px; border-top:1px solid var(--line);
+  grid-template-columns: 88px minmax(0,1fr) auto; grid-template-areas:"nm nm fl" "rs rs rs" "sk vl pt" }
+.xr:hover{ background:var(--soft) }
+.xr.on{ background:var(--soft); box-shadow:inset 3px 0 0 var(--accent) }
+.xr > *{ position:relative; z-index:1; pointer-events:none; min-width:0 }
+.xr .hit{ position:absolute; inset:0; z-index:0; pointer-events:auto; border:0; background:transparent; cursor:pointer }
+.xr .fl{ grid-area:fl; pointer-events:auto; z-index:2 }
+.xr .nm{ grid-area:nm; display:flex; flex-direction:column }
+.xr .nm b{ font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.xr .nm small{ color:var(--muted); font-size:11.5px; display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+.xr .rs{ grid-area:rs; display:flex; flex-wrap:wrap; gap:4px }
+.xr .rs span{ font-size:12px; color:var(--fg2); background:var(--soft2); border-radius:6px; padding:1px 7px }
+.xr .rs span.bad{ background:var(--bad-bg); color:var(--bad); box-shadow:inset 0 0 0 1px var(--bad-line); display:inline-flex; align-items:center; gap:4px }
+.xr .vl{ grid-area:vl; font-size:12px; color:var(--fg2); display:flex; gap:12px }
+.xr .sk{ grid-area:sk; display:block }
+.xr .pt{ grid-area:pt; font-size:12px; color:var(--fg2); white-space:nowrap; text-align:right }
+.xr .pt b{ font-size:13.5px; color:var(--fg); margin-left:3px }
+@container scan (min-width: 880px){
+  .xr{ grid-template-columns: minmax(170px,1.2fr) 88px 150px minmax(0,2fr) 52px 92px; grid-template-areas:"nm sk vl rs pt fl"; padding:4px 6px }
+  .xr .vl{ justify-content:flex-end }
+}
+.ex-more{ margin-top:10px }
+
+/* ===== 銘柄カード ===== */
+.cd-layer{ position:fixed; inset:0; z-index:60; pointer-events:none }
+.cd-layer[hidden]{ display:none }
+.cd-scrim{ position:absolute; inset:0; background:rgba(10,10,8,.42); pointer-events:auto }
+.cd{ position:absolute; left:0; right:0; bottom:0; max-height:90vh; max-height:90dvh; display:flex; flex-direction:column; background:var(--surface);
+  border-radius:16px 16px 0 0; box-shadow:var(--shadow); pointer-events:auto }
+.cd-layer.out .cd, .cd-layer.out .cd-scrim{ pointer-events:none }
+.cd-grip{ width:40px; height:4px; border-radius:2px; background:var(--line2); margin:8px auto 0; flex:none }
+.cd-top{ display:flex; align-items:flex-start; gap:8px; padding:8px 12px 10px 16px; border-bottom:1px solid var(--line); flex:none }
+.cd-top .tx{ flex:1; min-width:0 }
+.cd-top h2{ margin:0; font-size:18px; line-height:1.35; word-break:break-all }
+.cd-top .sub{ display:flex; flex-wrap:wrap; gap:3px 8px; align-items:center; font-size:12.5px; color:var(--fg2); margin-top:2px }
+.cd-x{ flex:none; width:44px; height:44px; border:0; border-radius:10px; background:var(--soft); display:grid; place-items:center; cursor:pointer }
+.cd-x:hover{ background:var(--soft2) }
+.cd-body > *{ flex:none }
+.cd-body{ overflow:auto; overscroll-behavior:contain; padding:12px 16px 28px; display:flex; flex-direction:column; gap:18px }
+.cd-chips{ display:flex; flex-wrap:wrap; gap:6px; align-items:center }
+.cd-chips .lb{ font-size:11.5px; color:var(--muted); margin-right:2px }
+.cd-chip{ min-height:44px; padding:0 12px; border-radius:22px; border:1px solid var(--line2); background:var(--surface); font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px }
+.cd-chip:hover{ background:var(--soft) }
+.cd-chip small{ color:var(--muted); font-weight:600 }
+.cd-kpi{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden }
+.cd-kpi > div{ background:var(--surface); padding:9px 12px }
+.cd-kpi .k{ font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:5px }
+.cd-kpi .v{ font-size:21px; font-weight:700; line-height:1.25; letter-spacing:-.01em }
+.cd-kpi .v.sm{ font-size:17px }
+.cd-kpi .pts{ background:var(--soft) }
+.cd-links{ display:flex; flex-direction:column; gap:8px }
+.cd-links .row{ display:grid; grid-template-columns: 1fr 1fr; gap:8px }
+.cd-links .sc-btn.ink{ min-height:48px; font-size:15px }
+.cd h3{ margin:0 0 8px; font-size:13.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.cd h3 small{ font-weight:500; color:var(--muted); font-size:12px }
+.cd-chart svg{ display:block; width:100%; height:auto }
+.cd-chart .gl{ stroke:var(--line); stroke-width:1 }
+.cd-chart text{ fill:var(--muted); font-size:10.5px; font-variant-numeric:tabular-nums }
+.cd-chart .up{ fill:var(--up); stroke:var(--up) } .cd-chart .dn{ fill:var(--down); stroke:var(--down) }
+.cd-chart .vu{ fill:var(--up-v) } .cd-chart .vd{ fill:var(--down-v) }
+.cd-chart .vu.t{ fill:var(--up) } .cd-chart .vd.t{ fill:var(--down) }
+.cd-chart .td{ fill:var(--soft) }
+.cd-chart .tdl{ fill:var(--fg2); font-weight:700 }
+.cd-chart .avg{ stroke:var(--fg); stroke-width:1.5 }
+.cd-chart .avgl{ fill:var(--fg2); font-weight:600 }
+.cd-chart .rt{ fill:var(--fg); font-weight:700; font-size:11px }
+.cd-chart .csm{ fill:var(--fg); font-weight:800; font-size:9.5px }
+.cd-chart .nob{ fill:var(--fg2); font-size:11px; font-weight:600 }
+.cd-ckey{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:11.5px; color:var(--muted); margin-top:4px }
+.cd-ckey i{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px; vertical-align:0 }
+.cd-score .tot{ font-size:26px; font-weight:750; line-height:1 }
+.cd-score .tot small{ font-size:13px; font-weight:600; color:var(--muted); margin-left:2px }
+.cd-score svg{ display:block; width:100%; height:auto; margin-top:8px }
+.cd-score .ax text{ fill:var(--muted); font-size:10px }
+.cd-why{ display:flex; flex-wrap:wrap; gap:4px 14px; margin:8px 0 0; padding:0; list-style:none; font-size:12.5px }
+.cd-why li{ display:inline-flex; align-items:center; gap:5px; white-space:nowrap }
+.cd-why li i{ width:10px; height:10px; border-radius:2px; flex:none }
+.cd-why li.z{ color:var(--muted) }
+.cd-why li b{ font-variant-numeric:tabular-nums }
+.cd-fm .row{ display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; font-size:13px; margin-bottom:8px }
+.cd-fm .row b{ font-size:16px }
+.cd-mix{ display:flex; height:14px; border-radius:4px; overflow:hidden; gap:2px; background:var(--surface) }
+.cd-mix i{ display:block; height:100% }
+.cd-mix .c{ background:var(--fg) } .cd-mix .n{ background:var(--line2) }
+.cd-mix .h, .cd-mixk i.h{ background-color:var(--hype); background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.4) 0 2px, transparent 2px 5px) }
+.cd-mixk{ display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--fg2); margin-top:6px }
+.cd-mixk span{ display:inline-flex; align-items:center; gap:5px }
+.cd-mixk i{ width:10px; height:10px; border-radius:2px }
+.cd-posts{ display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none }
+.cd-post{ padding:9px 11px; border-radius:10px; border:1px solid var(--line); font-size:13px; line-height:1.6; white-space:pre-line; word-break:break-word; color:var(--fg2) }
+.cd-post.c{ background:var(--soft); border-color:var(--line2); color:var(--fg) }
+.cd-post .pt{ display:flex; gap:6px; margin-bottom:3px }
+.cd-post mark{ background:var(--warn-bg); color:inherit; font-weight:700; box-shadow:inset 0 -2px 0 var(--warn-line); border-radius:2px; padding:0 1px }
+.cd-feat{ margin:0; font-size:13.5px; line-height:1.7 }
+.cd-ex{ display:flex; flex-direction:column; gap:6px; padding:10px 12px; border-radius:10px; background:var(--soft); font-size:13px }
+.cd-ex .t{ font-weight:700; display:flex; align-items:center; gap:6px }
+.cd-ex.bad{ background:var(--bad-bg); box-shadow:inset 0 0 0 1px var(--bad-line) }
+.cd-ex.bad .t{ color:var(--bad) }
+.cd-ex ul{ margin:0; padding-left:18px }
+.cd-muted{ font-size:12.5px; color:var(--muted); margin:0 }
+@media (min-width: 900px){
+  .cd-scrim{ display:none }
+  .cd{ left:auto; top:0; right:0; bottom:0; width:440px; max-height:none; border-radius:0; border-left:1px solid var(--line) }
+  .cd-grip{ display:none }
+  .cd-top{ padding-top:14px }
+}
+.sp-svg .gh, .sp-svg .gh-ax{ pointer-events:none }
+
+/* ===== 動き =====
+ * transform と opacity だけを動かす。最初の表示と押したときだけ（JS がクラスを付ける）。
+ * 動きを減らす設定では何も動かさない（下の no-preference の中にだけ書く）。どれも止まった形が最後の形になる */
+@keyframes fadeIn{ from{ opacity:0 } }
+@keyframes fadeOut{ to{ opacity:0 } }
+@keyframes growX{ from{ transform:scaleX(0) } }
+@keyframes growY{ from{ transform:scaleY(0); opacity:0 } }
+@keyframes ptIn{ from{ transform:scale(0); opacity:0 } }
+@keyframes ptDim{ from{ opacity:1 } }
+@keyframes ptDimX{ from{ opacity:.72 } }
+@keyframes ptLit{ from{ opacity:.09 } }
+@keyframes hmIn{ from{ transform:scale(.96); opacity:0 } }
+@keyframes zIn{ from{ transform:scale(.9); opacity:0 } }
+@keyframes zOut{ from{ transform:scale(1.05); opacity:0 } }
+@keyframes tbIn{ from{ opacity:.25 } }
+@keyframes cdUp{ from{ transform:translateY(100%) } }
+@keyframes cdDown{ to{ transform:translateY(100%) } }
+@keyframes cdIn{ from{ transform:translateX(24px); opacity:.6 } }
+@keyframes cdOut{ to{ transform:translateX(24px); opacity:0 } }
+@keyframes cdSwap{ from{ opacity:.4 } }
+@keyframes ckPop{ 0%{ transform:scale(0); opacity:0 } 60%{ transform:scale(1.25); opacity:1 } 100%{ transform:none; opacity:1 } }
+@keyframes icPop{ from{ transform:scale(.72) } }
+@media (prefers-reduced-motion: no-preference){
+  /* 拡大して入る動きで横にはみ出しても、画面を横に動かさない（clip はスクロールの箱を作らないので sticky は効く） */
+  .scan-root{ overflow-x:clip }
+
+  /* 押したとき：少し縮む */
+  .scan-root .sc-btn, .scan-root .sc-seg button, .scan-root .br, .scan-root .ex-b, .scan-root .cd-chip, .scan-root .cd-x,
+  .scan-root .tm-gh, .scan-root .hr-h, .scan-root .lr, .scan-root .xr{ transition:transform 80ms ease-out }
+  .scan-root .tm-t{ transition:opacity .15s, transform 80ms ease-out }
+  .scan-root .sc-btn:active, .scan-root .sc-seg button:active, .scan-root .br:active, .scan-root .ex-b:active, .scan-root .cd-chip:active,
+  .scan-root .cd-x:active, .scan-root .tm-gh:active, .scan-root .hr-h:active, .scan-root .tm-t:active{ transform:scale(.97) }
+  /* 一覧の行は、行全体を押すボタン（.hit）のときだけ（掲示板のリンクを押したときは縮めない） */
+  .scan-root .lr:has(> .hit:active), .scan-root .xr:has(> .hit:active){ transform:scale(.97) }
+
+  /* 除外を隠す：チェックが弾んで出る。外したときは箱が少し弾む */
+  .sc-btn.tg .ck{ transform-box:fill-box; transform-origin:center }
+  .sc-btn.tg.pop .ck{ animation:ckPop .28s ease-out }
+  .sc-btn.tg.pop[aria-pressed="false"] .ic{ animation:icPop .2s ease-out }
+
+  /* 棒：0 から伸びる（.gx は左から、SVG の点の帯は 0 の線から。.gy は下から上へ） */
+  .gx{ transform-origin:left center }
+  .mo-in .gx{ animation:growX .4s cubic-bezier(.2,.7,.3,1) var(--gd, 0ms) backwards }
+  .mo-in .gy{ animation:growY .36s cubic-bezier(.2,.7,.3,1) var(--gd, 0ms) backwards }
+
+  /* 散布図：最初は点が順位の順に育つ。描き直すときは前の位置から動き、消える点は薄れ、出る点は育つ */
+  .sp-svg .pt, .sp-svg .smk{ transform-box:fill-box; transform-origin:center; transition:opacity .15s, transform .4s cubic-bezier(.2,.7,.3,1) }
+  .sp-svg.mo-in .pt{ animation:ptIn .34s cubic-bezier(.2,.8,.3,1.15) backwards }
+  .sp-svg.mo-in .smk, .sp-svg.mo-in .lbl{ animation:fadeIn .3s ease-out .26s backwards }
+  .sp-svg .pin{ animation:ptIn .3s ease-out .12s backwards }
+  .sp-svg .gh, .sp-svg .gh-ax{ animation:fadeOut .2s ease-in forwards }
+  .sp-svg .fin{ animation:fadeIn .3s ease-out .12s backwards }
+  .sp-svg .lin{ animation:fadeIn .25s ease-out .3s backwards }
+  .sp-svg .pt.dch.dim{ animation:ptDim .3s ease-in }
+  .sp-svg .pt.x.dch.dim{ animation-name:ptDimX }
+  .sp-svg .pt.dch:not(.dim){ animation:ptLit .3s ease-out }
+
+  /* ヒートマップ：枠ごとに順に出る。深掘りは押した見出しから拡大、戻るは縮小。除外を隠すと枠が新しい位置へ動く */
+  .hm-body.mo-in .tm-g, .hm-body.mo-in .hr{ animation:hmIn .32s cubic-bezier(.2,.7,.3,1) var(--gd, 0ms) backwards }
+  .hm-body.mo-zin{ animation:zIn .34s cubic-bezier(.2,.7,.3,1) }
+  .hm-body.mo-zout{ animation:zOut .34s cubic-bezier(.2,.7,.3,1) }
+  .hm-body.mo-swap .tb{ animation:tbIn .28s ease-out backwards }
+  .hm-body.mo-swap .gin{ animation:hmIn .3s ease-out .08s backwards }
+  .hm-body.mo-fl [data-gk]{ transition:transform .38s cubic-bezier(.2,.7,.3,1) }
+
+  /* 銘柄カード：スマホは下から滑り出て、閉じるときは下へ。幕は薄く出て薄く消える */
+  .cd-layer.opening .cd{ animation:cdUp .3s cubic-bezier(.2,.8,.2,1) }
+  .cd-layer.opening .cd-scrim{ animation:fadeIn .25s ease-out }
+  .cd-layer.opening .cd-body{ --gd:120ms }
+  .cd-layer.swap .cd{ animation:cdSwap .18s ease-out }
+  .cd-layer.out .cd{ animation:cdDown .24s ease-in forwards }
+  .cd-layer.out .cd-scrim{ animation:fadeOut .24s ease-in forwards }
+}
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference){
+  /* PC の横の板は、今までどおり右から少し滑って出る */
+  .cd-layer.opening .cd{ animation:cdIn .18s ease-out }
+  .cd-layer.opening .cd-body{ --gd:0ms }
+  .cd-layer.out .cd{ animation:cdOut .18s ease-in forwards }
+}
+@media (prefers-reduced-motion: reduce){
+  .scan-root *, .scan-root *::before, .scan-root *::after{ animation:none !important; transition:none !important }
+}
+
+/* ===== 上の案内（サーバーが足す。.scan-root の外なので色は自前で持つ） ===== */
+.site-nav{
+  display:flex; flex-wrap:wrap; align-items:center; gap:4px 16px;
+  max-width:1100px; margin:0 auto; padding:8px 16px; box-sizing:border-box;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size:0.85rem; line-height:1.6; color:#46443f;
+}
+.site-nav a{ color:#1f5fc4 }
+.site-nav a:first-child{ margin-right:auto; color:#1b1a18; font-weight:700; text-decoration:none }
+@media (prefers-color-scheme: dark){
+  .site-nav{ color:#cfcdc6 }
+  .site-nav a{ color:#7aa8ff }
+  .site-nav a:first-child{ color:#edece8 }
+}
+
+</style>
+</head>
+<body>
+<nav class="site-nav"><a href="index.html">stock-screener</a><a href="reports.html">レポート一覧</a></nav>
+<div id="app"></div>
+
+<!-- サーバーはこの中に scan の JSON を埋め込む（"<" ">" "&" は \u003c \u003e \u0026 にしておく） -->
+<script type="application/json" id="scan-data">{"run":{"run_at":"2026-10-20T16:40:02.877394+09:00","session":"after_close","market_date":"2026-10-20","warnings":["PTSランキングは2026-10-19の夜間取引のものなので使いませんでした（2026-10-20の夜間取引はまだ始まっていません）"],"funnel":{"all":20,"primary":3,"passed":3},"theme_rules":{"min_shared":2,"industry_themes_shown":12}},"stocks":[{"code":"3133","name":"(株)海帆","market":"東証GRT","route":"ranking","passed":true,"reasons":[],"excluded_kind":null,"stop_high_close":false,"change_rate":53.57,"price":43.0,"turnover_oku":9.54,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":29.9,"industry":"小売業","in_heatmap":true,"map_rate":53.57,"map_turnover_oku":9.54,"map_source":"当日","feature":"居酒屋、飲食店をＦＣ・直営展開。２６年９月主軸の「新時代」の大半譲渡。再エネ、美容医療併営","score":{"streak":1,"volume_ratio":11.667390074839863,"recent_stop_high":false,"same_industry":1,"forum_quality":0.0,"b1":0.0,"b2":20.0,"b3":0.0,"b4":0.0,"b5":0.0,"total":20.0},"forum":{"post_count":72,"pace_per_hour":52.325581395348834,"hype_ratio":0.1527777777777778,"concrete_ratio":0.1527777777777778,"is_rough":false,"recent":[]},"bars":[["2026-09-07",65.0,67.0,62.0,63.0,607200,false],["2026-09-08",63.0,66.0,62.0,62.0,622200,false],["2026-09-09",62.0,64.0,61.0,62.0,471600,false],["2026-09-10",60.0,62.0,60.0,61.0,361800,false],["2026-09-11",60.0,62.0,60.0,62.0,292800,false],["2026-09-14",62.0,62.0,60.0,60.0,280600,false],["2026-09-15",58.0,63.0,58.0,60.0,610100,false],["2026-09-16",59.0,60.0,57.0,57.0,642300,false],["2026-09-17",54.0,55.0,51.0,52.0,1645000,false],["2026-09-18",50.0,54.0,50.0,51.0,877900,false],["2026-09-24",50.0,51.0,46.0,46.0,1644000,false],["2026-09-25",46.0,50.0,42.0,43.0,1355100,false],["2026-09-28",45.0,63.0,45.0,48.0,8059800,false],["2026-09-29",52.0,58.0,46.0,47.0,3923400,false],["2026-09-30",47.0,47.0,45.0,46.0,775700,false],["2026-10-01",45.0,46.0,43.0,44.0,776000,false],["2026-10-02",43.0,44.0,40.0,40.0,1276100,false],["2026-10-05",39.0,39.0,34.0,35.0,2758200,false],["2026-10-06",35.0,43.0,34.0,35.0,5005900,false],["2026-10-07",34.0,35.0,33.0,34.0,1550200,false],["2026-10-08",33.0,34.0,32.0,34.0,1310500,false],["2026-10-09",33.0,35.0,33.0,35.0,499500,false],["2026-10-13",35.0,35.0,32.0,33.0,1110500,false],["2026-10-14",32.0,33.0,32.0,32.0,758900,false],["2026-10-15",31.0,32.0,29.0,31.0,1638500,false],["2026-10-16",29.0,31.0,29.0,30.0,829900,false],["2026-10-19",27.0,30.0,27.0,28.0,1577100,false]],"themes":["外食","居酒屋","焼き鳥","焼き肉","フランチャイズチェーン","再生可能エネルギー","太陽光発電関連","メガソーラー","蓄電池","医療支援","小売り"],"shared_themes":["医療支援"],"display_theme":"医療支援"},{"code":"3858","name":"(株)ユビキタスＡＩ","market":"東証STD","route":"ranking","passed":true,"reasons":[],"excluded_kind":null,"stop_high_close":false,"change_rate":6.06,"price":420.0,"turnover_oku":31.03,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":43.9,"industry":"情報・通信業","in_heatmap":true,"map_rate":6.06,"map_turnover_oku":31.03,"map_source":"当日","feature":"自社開発製品を中心に海外製品も扱う組み込みソフト会社。ＩｏＴ関連ソリューションを展開","score":{"streak":1,"volume_ratio":28.441698425530276,"recent_stop_high":false,"same_industry":1,"forum_quality":-3.0555555555555554,"b1":0.0,"b2":20.0,"b3":0.0,"b4":0.0,"b5":-3.0555555555555554,"total":16.944444444444443},"forum":{"post_count":72,"pace_per_hour":36.48,"hype_ratio":0.2222222222222222,"concrete_ratio":0.06944444444444445,"is_rough":false,"recent":[]},"bars":[["2026-09-07",301.0,304.0,298.0,300.0,24100,false],["2026-09-08",299.0,303.0,297.0,301.0,22900,false],["2026-09-09",301.0,306.0,300.0,303.0,25500,false],["2026-09-10",300.0,310.0,297.0,310.0,27300,false],["2026-09-11",309.0,312.0,306.0,309.0,18800,false],["2026-09-14",311.0,312.0,305.0,305.0,24500,false],["2026-09-15",304.0,310.0,302.0,304.0,25100,false],["2026-09-16",304.0,323.0,300.0,305.0,108000,false],["2026-09-17",305.0,309.0,301.0,305.0,28700,false],["2026-09-18",306.0,314.0,306.0,314.0,29700,false],["2026-09-24",318.0,318.0,314.0,316.0,23700,false],["2026-09-25",317.0,322.0,313.0,321.0,30100,false],["2026-09-28",323.0,324.0,318.0,322.0,23300,false],["2026-09-29",319.0,320.0,316.0,320.0,12600,false],["2026-09-30",320.0,331.0,317.0,329.0,20800,false],["2026-10-01",331.0,335.0,324.0,329.0,30500,false],["2026-10-02",337.0,337.0,328.0,328.0,36100,false],["2026-10-05",330.0,334.0,328.0,334.0,21800,false],["2026-10-06",334.0,353.0,332.0,347.0,265900,false],["2026-10-07",353.0,353.0,333.0,336.0,68300,false],["2026-10-08",335.0,389.0,335.0,361.0,625900,false],["2026-10-09",355.0,367.0,344.0,353.0,201000,false],["2026-10-13",352.0,400.0,352.0,387.0,596900,false],["2026-10-14",395.0,400.0,366.0,377.0,215000,false],["2026-10-15",369.0,369.0,341.0,348.0,196500,false],["2026-10-16",348.0,423.0,348.0,408.0,1147300,false],["2026-10-19",392.0,465.0,380.0,396.0,1513300,false]],"themes":["組み込みソフト","M2M","無線LAN","データベース","情報セキュリティ","サイバーセキュリティ","コネクテッドカー","MaaS","SDV","カーナビゲーション","量子コンピューター","任天堂関連","ニンテンドーDS","ニンテンドー3DS","遠隔医療","スマートホーム","その他デジタル家電関連"],"shared_themes":["任天堂関連","MaaS","遠隔医療"],"display_theme":"任天堂関連"},{"code":"8995","name":"(株)誠建設工業","market":"東証STD","route":"ranking","passed":true,"reasons":[],"excluded_kind":null,"stop_high_close":false,"change_rate":7.82,"price":1696.0,"turnover_oku":3.89,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":34.1,"industry":"不動産業","in_heatmap":true,"map_rate":7.82,"map_turnover_oku":3.89,"map_source":"当日","feature":"大阪府堺市中心に低価格の戸建て分譲住宅事業を展開。注文住宅建築やリフォームも手がける","score":{"streak":1,"volume_ratio":0.8855817549284886,"recent_stop_high":false,"same_industry":1,"forum_quality":-3.055555555555556,"b1":0.0,"b2":0.0,"b3":0.0,"b4":0.0,"b5":-3.055555555555556,"total":-3.055555555555556},"forum":{"post_count":72,"pace_per_hour":0.549536468222942,"hype_ratio":0.2916666666666667,"concrete_ratio":0.1388888888888889,"is_rough":false,"recent":[]},"bars":[["2026-09-07",1728.0,2048.0,1685.0,2048.0,601900,false],["2026-09-08",2548.0,2548.0,2548.0,2548.0,56200,true],["2026-09-09",2598.0,2929.0,2048.0,2048.0,1264400,false],["2026-09-10",1918.0,2548.0,1861.0,2548.0,1074500,true],["2026-09-11",2848.0,2848.0,2353.0,2548.0,673200,false],["2026-09-14",2598.0,2879.0,2048.0,2048.0,866200,false],["2026-09-15",1878.0,1994.0,1801.0,1900.0,347100,false],["2026-09-16",1905.0,1938.0,1693.0,1720.0,129500,false],["2026-09-17",1707.0,2120.0,1688.0,1995.0,1441200,false],["2026-09-18",1983.0,2100.0,1900.0,1939.0,390300,false],["2026-09-24",1924.0,1967.0,1860.0,1909.0,89100,false],["2026-09-25",1895.0,1974.0,1822.0,1951.0,93700,false],["2026-09-28",1951.0,2050.0,1890.0,1940.0,89900,false],["2026-09-29",1918.0,1935.0,1795.0,1808.0,69500,false],["2026-09-30",1848.0,1868.0,1782.0,1834.0,47100,false],["2026-10-01",1854.0,2050.0,1822.0,1950.0,455800,false],["2026-10-02",1950.0,2159.0,1906.0,2013.0,501000,false],["2026-10-05",1963.0,2152.0,1940.0,2053.0,271300,false],["2026-10-06",2058.0,2070.0,1911.0,1950.0,139700,false],["2026-10-07",1925.0,1952.0,1889.0,1908.0,52500,false],["2026-10-08",1899.0,1899.0,1715.0,1715.0,86800,false],["2026-10-09",1685.0,1765.0,1663.0,1705.0,79600,false],["2026-10-13",1667.0,1871.0,1561.0,1683.0,377800,false],["2026-10-14",1673.0,2000.0,1673.0,1737.0,531400,false],["2026-10-15",1700.0,1850.0,1630.0,1642.0,224400,false],["2026-10-16",1642.0,1718.0,1641.0,1652.0,55600,false],["2026-10-19",1609.0,1641.0,1550.0,1573.0,47800,false]],"themes":["住宅関連","パワービルダー","注文住宅","リフォーム"],"shared_themes":[],"display_theme":"単独"},{"code":"7360","name":"(株)オンデック","market":"東証GRT","route":null,"passed":false,"reasons":["F1: S高で引けている"],"excluded_kind":"F1","stop_high_close":true,"change_rate":38.21,"price":1190.0,"turnover_oku":6.89,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"サービス業","in_heatmap":true,"map_rate":38.21,"map_turnover_oku":6.89,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["マッチングサービス","事業承継","後継者問題"],"shared_themes":["マッチングサービス"],"display_theme":"マッチングサービス"},{"code":"130A","name":"(株)Ｖｅｒｉｔａｓ　Ｉｎ　Ｓｉｌｉｃｏ","market":"東証GRT","route":null,"passed":false,"reasons":["F1: S高で引けている","F3: 売買代金 2.6億円 が 3億円 未満"],"excluded_kind":"F1","stop_high_close":true,"change_rate":23.67,"price":418.0,"turnover_oku":2.6,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"医薬品","in_heatmap":true,"map_rate":23.67,"map_turnover_oku":2.6,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["創薬","医療・医薬品","核酸医薬","バイオ抗がん剤","抗がん剤","遺伝子治療","医薬品関連"],"shared_themes":["創薬","遺伝子治療","医薬品関連"],"display_theme":"創薬"},{"code":"2388","name":"(株)ウェッジホールディングス","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 0.3億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":20.0,"price":12.0,"turnover_oku":0.31,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"その他金融業","in_heatmap":true,"map_rate":20.0,"map_turnover_oku":0.31,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["金融","リース","オートバイ","ゲーム関連","トレーディングカード","電子書籍","出版","アジア関連","インドネシア関連","タイ関連","ミャンマー関連","音楽"],"shared_themes":["リース","電子書籍"],"display_theme":"リース"},{"code":"3556","name":"リネットジャパングループ(株)","market":"東証GRT","route":null,"passed":false,"reasons":["F1: S高で引けている","F3: 売買代金 0.5億円 が 3億円 未満"],"excluded_kind":"F1","stop_high_close":true,"change_rate":20.0,"price":900.0,"turnover_oku":0.45,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"小売業","in_heatmap":true,"map_rate":20.0,"map_turnover_oku":0.45,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["リユース","リサイクル","専門サイト","買取再販","貴金属回収","都市鉱山","レアアース","中古本","コミック","農業関連","障害者支援","就職支援","外国人労働者","リース","Windows10サポート終了","巣ごもり"],"shared_themes":["専門サイト","リース"],"display_theme":"専門サイト"},{"code":"6658","name":"シライ電子工業(株)","market":"東証STD","route":null,"passed":false,"reasons":["F1: S高で引けている","F3: 売買代金 0.5億円 が 3億円 未満"],"excluded_kind":"F1","stop_high_close":true,"change_rate":18.1,"price":522.0,"turnover_oku":0.54,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"電気機器","in_heatmap":true,"map_rate":18.1,"map_turnover_oku":0.54,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["プリント基板","フレキシブルプリント基板","試験・検査・計測","サービスロボット","ロボット掃除機","任天堂関連","5G"],"shared_themes":["任天堂関連"],"display_theme":"任天堂関連"},{"code":"4883","name":"(株)モダリス","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 1.8億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":10.34,"price":32.0,"turnover_oku":1.83,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"医薬品","in_heatmap":true,"map_rate":10.34,"map_turnover_oku":1.83,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["創薬","遺伝子治療","バイオテクノロジー関連","医薬品関連"],"shared_themes":["創薬","遺伝子治療","医薬品関連"],"display_theme":"創薬"},{"code":"3542","name":"(株)ベガコーポレーション","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 0.9億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":9.9,"price":1710.0,"turnover_oku":0.91,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"小売業","in_heatmap":true,"map_rate":9.9,"map_turnover_oku":0.91,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["家具","インテリア","専門サイト","eコマース","越境EC","インターネット通信販売"],"shared_themes":["専門サイト","eコマース"],"display_theme":"専門サイト"},{"code":"1485","name":"MAXIS JAPAN 設備･人材積極投資企業200上場投信","market":"東証ETF","route":null,"passed":false,"reasons":["F3: 売買代金 0.0億円 が 3億円 未満","F4: 対象外の市場（東証ETF）"],"excluded_kind":"F3","stop_high_close":false,"change_rate":9.65,"price":57360.0,"turnover_oku":0.01,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":null,"in_heatmap":false,"map_rate":9.65,"map_turnover_oku":0.01,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":[],"shared_themes":[],"display_theme":"単独"},{"code":"9244","name":"(株)デジタリフト","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 1.1億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":9.24,"price":1300.0,"turnover_oku":1.1,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"サービス業","in_heatmap":true,"map_rate":9.24,"map_turnover_oku":1.1,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["インターネット広告関連","ネット広告","アドテクノロジー","チャットボット","広告"],"shared_themes":["インターネット広告関連","ネット広告","アドテクノロジー"],"display_theme":"インターネット広告関連"},{"code":"7851","name":"カワセコンピュータサプライ(株)","market":"福証","route":null,"passed":false,"reasons":["F3: 売買代金 0.1億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":9.23,"price":213.0,"turnover_oku":0.06,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"その他製品","in_heatmap":true,"map_rate":9.23,"map_turnover_oku":0.06,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["デジタル印刷","印刷","ダイレクトメール","改正電子帳簿保存法","インボイス制度","事務用品","元号関連"],"shared_themes":[],"display_theme":"単独"},{"code":"4712","name":"(株)ＫｅｙＨｏｌｄｅｒ","market":"東証STD","route":null,"passed":false,"reasons":["F3: 売買代金 0.6億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":6.54,"price":863.0,"turnover_oku":0.62,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"サービス業","in_heatmap":true,"map_rate":6.54,"map_turnover_oku":0.62,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["イベント","映像制作","番組制作","スマホゲーム","広告代理店","コンタクトレンズ","Go To イベント"],"shared_themes":[],"display_theme":"単独"},{"code":"5242","name":"(株)アイズ","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 1.1億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":5.99,"price":2866.0,"turnover_oku":1.11,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"情報・通信業","in_heatmap":true,"map_rate":5.99,"map_turnover_oku":1.11,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["専門サイト","マッチングサービス","広告","情報配信","美容","SNS","インフルエンサー","生成AI","BtoB","インターネット広告関連","ネット広告","アドテクノロジー","SEO"],"shared_themes":["専門サイト","マッチングサービス","広告"],"display_theme":"専門サイト"},{"code":"4074","name":"(株)ラキール","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 0.0億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":5.35,"price":808.0,"turnover_oku":0.04,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"情報・通信業","in_heatmap":true,"map_rate":5.35,"map_turnover_oku":0.04,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["金融向けシステム","SNS","eコマース","マイナンバー","オフショア開発"],"shared_themes":["eコマース","SNS"],"display_theme":"eコマース"},{"code":"4490","name":"(株)ビザスク","market":"東証GRT","route":null,"passed":false,"reasons":["F3: 売買代金 0.6億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":5.13,"price":799.0,"turnover_oku":0.58,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"情報・通信業","in_heatmap":true,"map_rate":5.13,"map_turnover_oku":0.58,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["マッチングサービス","インターネット調査・分析","展示会","シェアリングエコノミー"],"shared_themes":["マッチングサービス"],"display_theme":"マッチングサービス"},{"code":"3710","name":"ジョルダン(株)","market":"東証STD","route":null,"passed":false,"reasons":["F3: 売買代金 0.2億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":5.1,"price":680.0,"turnover_oku":0.21,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"情報・通信業","in_heatmap":true,"map_rate":5.1,"map_turnover_oku":0.21,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["専門サイト","検索サイト","旅行サイト","MaaS","電子チケット","チケット販売","自動運転車","地図","GPS","動画配信","電子書籍","スマートシティ","Wii","Go To トラベル","ウェブサービス"],"shared_themes":["専門サイト","電子書籍","MaaS"],"display_theme":"専門サイト"},{"code":"6898","name":"トミタ電機(株)","market":"東証STD","route":null,"passed":false,"reasons":["F3: 売買代金 0.0億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":5.05,"price":5100.0,"turnover_oku":0.03,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"電気機器","in_heatmap":true,"map_rate":5.05,"map_turnover_oku":0.03,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["電子部品","フェライト","スイッチング電源","半導体製造装置","電気自動車関連"],"shared_themes":[],"display_theme":"単独"},{"code":"7681","name":"(株)レオクラン","market":"東証STD","route":null,"passed":false,"reasons":["F3: 売買代金 0.0億円 が 3億円 未満"],"excluded_kind":"F3","stop_high_close":false,"change_rate":5.04,"price":980.0,"turnover_oku":0.03,"pts_change_rate":null,"pts_price":null,"pts_turnover_oku":null,"market_cap_oku":null,"industry":"卸売業","in_heatmap":true,"map_rate":5.04,"map_turnover_oku":0.03,"map_source":"当日","feature":null,"score":null,"forum":null,"bars":[],"themes":["医療機器","医療器材","医療支援","遠隔医療","給食","予防医療"],"shared_themes":["医療支援","遠隔医療"],"display_theme":"医療支援"}],"industries":[{"name":"情報・通信業","count":5,"avg_change_rate":5.53,"turnover_oku_sum":32.97,"themes":[{"name":"SNS","count":2,"avg_change_rate":5.67,"turnover_oku_sum":1.15},{"name":"MaaS","count":2,"avg_change_rate":5.58,"turnover_oku_sum":31.24},{"name":"マッチングサービス","count":2,"avg_change_rate":5.56,"turnover_oku_sum":1.69},{"name":"専門サイト","count":2,"avg_change_rate":5.54,"turnover_oku_sum":1.32}]},{"name":"小売業","count":3,"avg_change_rate":27.82,"turnover_oku_sum":10.9,"themes":[{"name":"専門サイト","count":2,"avg_change_rate":14.95,"turnover_oku_sum":1.36}]},{"name":"サービス業","count":3,"avg_change_rate":18.0,"turnover_oku_sum":8.61,"themes":[]},{"name":"医薬品","count":2,"avg_change_rate":17.01,"turnover_oku_sum":4.43,"themes":[{"name":"創薬","count":2,"avg_change_rate":17.01,"turnover_oku_sum":4.43},{"name":"遺伝子治療","count":2,"avg_change_rate":17.01,"turnover_oku_sum":4.43},{"name":"医薬品関連","count":2,"avg_change_rate":17.01,"turnover_oku_sum":4.43}]},{"name":"不動産業","count":1,"avg_change_rate":7.82,"turnover_oku_sum":3.89,"themes":[]},{"name":"電気機器","count":2,"avg_change_rate":11.58,"turnover_oku_sum":0.57,"themes":[]},{"name":"その他金融業","count":1,"avg_change_rate":20.0,"turnover_oku_sum":0.31,"themes":[]},{"name":"その他製品","count":1,"avg_change_rate":9.23,"turnover_oku_sum":0.06,"themes":[]},{"name":"卸売業","count":1,"avg_change_rate":5.04,"turnover_oku_sum":0.03,"themes":[]}]}</script>
+
+<script>
+/* scan 結果画面 — 素の JavaScript とインライン SVG（ライブラリなし）
+ *
+ * 使い方: ScanScreen.mount(入れる要素, scan のデータ, {theme, view, drill, sub, card, cardScroll, exOpen})
+ *   theme: "light" | "dark"（省略で OS の設定）
+ *   view : "industry" | "theme"、drill: 業種名かテーマ名、sub: 深掘りの中のテーマ、card: 銘柄コード、
+ *   exOpen: 除外した銘柄を開いておく
+ * 「除外を隠す」は localStorage の scan.hideExcluded（"1" なら隠す）に覚える。使えなくても画面は動く。
+ * 外のサイトから来た文字（銘柄名・特色・投稿）は、すべて textContent か createTextNode で入れる。
+ */
+(function (global) {
+  'use strict';
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var RATE_EDGES = [8, 12, 16, 20];               // +5〜8 / 8〜12 / 12〜16 / 16〜20 / 20以上
+  var BIN_LABELS = ['+5〜8%', '8〜12%', '12〜16%', '16〜20%', '20%以上'];
+  var BIN_SHORT = ['5〜8', '8〜12', '12〜16', '16〜20', '20〜'];
+  var SCORE_MIN = -20, SCORE_MAX = 75;            // 点の帯の目盛り（日や銘柄で変えない）
+  var TILE_FLOOR = 0.8;                           // タイルの最小の重み（売買代金の平方根）
+  var GROW_ROWS = 20;                             // 一覧で棒を伸ばす行の数（上から。下の行は動かさない）
+  var Y_FLOOR = 0.01;                             // 散布図の縦軸の下限（億円）
+  var FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
+  var PARTS = [
+    { key: 'b1', label: '連騰' }, { key: 'b2', label: '出来高' }, { key: 'b3', label: '直近S高' },
+    { key: 'b4', label: '連れ高' }, { key: 'b5', label: '掲示板' }
+  ];
+  var REASONS = [
+    { id: 'F3', label: '売買代金が足りない', code: 'F3', test: function (s) { return hasReason(s, /^F3/); } },
+    { id: 'F1', label: 'S高で引けた', code: 'F1', test: function (s) { return !!s.stop_high_close; } },
+    { id: "F1'", label: 'PTSの売買代金が足りない', code: "F1'", test: function (s) { return hasReason(s, /^F1['’]/); } },
+    { id: 'F2', label: '時価総額が大きすぎる', code: 'F2', test: function (s) { return hasReason(s, /^F2/); } },
+    { id: 'F4', label: 'ETFなど', code: 'F4', test: function (s) { return hasReason(s, /^F4/); } },
+    { id: 'NG', label: '取得失敗', code: '', bad: true, test: function (s) { return hasReason(s, /^取得失敗/) || s.excluded_kind === '取得失敗'; } }
+  ];
+  var LINK = {
+    forum: function (c) { return 'https://finance.yahoo.co.jp/quote/' + encodeURIComponent(c) + '.T/forum'; },
+    quote: function (c) { return 'https://finance.yahoo.co.jp/quote/' + encodeURIComponent(c) + '.T'; },
+    news: function (c) { return 'https://kabutan.jp/stock/news?code=' + encodeURIComponent(c); }
+  };
+  function hasReason(s, re) { return (s.reasons || []).some(function (r) { return re.test(r); }); }
+
+  /* ---------- 要素づくり ---------- */
+  function h(tag, a) {
+    var e = document.createElement(tag);
+    setAttrs(e, a, false);
+    for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
+    return e;
+  }
+  function sv(tag, a) {
+    var e = document.createElementNS(SVGNS, tag);
+    setAttrs(e, a, true);
+    for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
+    return e;
+  }
+  function setAttrs(e, a, isSvg) {
+    if (!a) return;
+    for (var k in a) {
+      var v = a[k];
+      if (v == null || v === false) continue;
+      if (k === 'text') e.textContent = String(v);
+      else if (k === 'class') isSvg ? e.setAttribute('class', v) : (e.className = v);
+      else if (k === 'style' && typeof v === 'object') { for (var p in v) e.style.setProperty(p, v[p]); }
+      else if (k.slice(0, 2) === 'on' && typeof v === 'function') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? '' : String(v));
+    }
+  }
+  function add(e, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) { c.forEach(function (x) { add(e, x); }); return; }
+    e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+  }
+  var ICONS = {
+    ext: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+    right: 'M9 6l6 6-6 6', left: 'M15 6l-6 6 6 6', close: 'M6 6l12 12M18 6L6 18',
+    warn: 'M12 3.5l9.5 16.5h-19zM12 10v4.5M12 17.2v.3', err: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM5.6 5.6l12.8 12.8',
+    filter: 'M4 5h16l-6 7.5V19l-4 1.5v-8z',
+    box: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+    check: 'M8 12.2l2.8 2.8L16.2 9.4'
+  };
+  function icon(name, size) {
+    size = size || 16;
+    return sv('svg', { viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'ic' }, sv('path', { d: ICONS[name] }));
+  }
+  function extLink(href, label, cls, aria) {
+    return h('a', { class: cls || 'sc-btn', href: href, target: '_blank', rel: 'noopener noreferrer', 'aria-label': aria || null }, label, icon('ext', 14));
+  }
+
+  /* ---------- 数字の書式（4章の表のとおり） ---------- */
+  function nf(v, d) { return v.toLocaleString('ja-JP', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function sgn(v) { return v > 0 ? '+' : v < 0 ? '−' : ''; }
+  var fmt = {
+    pct: function (v) { if (v == null) return '—'; var r = Math.round(v * 100) / 100; return sgn(r) + nf(Math.abs(r), 2) + '%'; },
+    oku: function (v, d) { return v == null ? '—' : nf(v, d == null ? 1 : d) + '億'; },
+    yen: function (v) { return v == null ? '—' : nf(v, 0) + '円'; },
+    pt: function (v) { var r = Math.round(v); return sgn(r) + Math.abs(r); },
+    pt1: function (v) { var r = Math.round(v * 10) / 10; return sgn(r) + nf(Math.abs(r), 1); },
+    total: function (v) { var r = Math.round(v); return (r < 0 ? '−' : '') + Math.abs(r); },
+    ratio: function (v) { return v == null ? '—' : Math.round(v * 100) + '%'; },
+    pace: function (v) { return v == null ? '—' : v < 0.05 ? '0.1件/時未満' : nf(v, 1) + '件/時'; },
+    times: function (v) { return v == null ? '—' : nf(v, 1) + '倍'; },
+    cnt: function (v) { return nf(v, 0) + '件'; }
+  };
+  // 全角・半角の違いをそろえる（サーバーの NFKC と同じ）
+  function nfkc(v) {
+    var t = String(v == null ? '' : v);
+    return t.normalize ? t.normalize('NFKC') : t;
+  }
+  function shortName(n) {
+    var t = nfkc(n || '');
+    t = t.replace(/\(株\)|（株）|株式会社/g, '').replace(/\s+/g, ' ').trim();
+    return t || String(n || '');
+  }
+  function binOf(r) { var b = 0; for (var i = 0; i < RATE_EDGES.length; i++) if (r >= RATE_EDGES[i]) b = i + 1; return b; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function weekday(ds) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ds || ''); if (!m) return null;
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return { y: +m[1], mo: +m[2], d: +m[3], w: '日月火水木金土'.charAt(d.getUTCDay()) };
+  }
+  var _ctx;
+  function textW(str, px, weight) {
+    if (!_ctx) _ctx = document.createElement('canvas').getContext('2d');
+    _ctx.font = (weight || 600) + ' ' + px + 'px ' + FONT;
+    return _ctx.measureText(str).width;
+  }
+  // 数字を 0 から数え上げる（最初の表示だけ。1つの rAF で文字だけを書き換え、最後は元の文字に戻す）
+  function countUp(els) {
+    var items = [];
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i], v = +el.getAttribute('data-v'), node = el.firstChild;
+      if (!(v > 0) || !node) continue;
+      el.style.minWidth = Math.ceil(el.getBoundingClientRect().width) + 'px';  // 桁が増えても幅を変えない
+      items.push({ node: node, v: v, end: node.nodeValue });
+    }
+    if (!items.length || !global.requestAnimationFrame) return;
+    items.forEach(function (it) { it.node.nodeValue = nf(0, 0); });
+    var t0 = null;
+    function tick(now) {
+      if (t0 == null) t0 = now;
+      var k = Math.min(1, (now - t0) / 600), e = 1 - Math.pow(1 - k, 3);
+      items.forEach(function (it) { it.node.nodeValue = k < 1 ? nf(Math.round(it.v * e), 0) : it.end; });
+      if (k < 1) global.requestAnimationFrame(tick);
+    }
+    global.requestAnimationFrame(tick);
+  }
+
+  /* ---------- データの下ごしらえ ---------- */
+  function prepare(raw) {
+    var run = raw.run || {};
+    var stocks = (raw.stocks || []).map(function (s, i) {
+      var o = Object.assign({}, s);
+      o.idx = i; o.short = shortName(s.name);
+      o.themes = s.themes || []; o.shared_themes = s.shared_themes || []; o.reasons = s.reasons || []; o.bars = s.bars || [];
+      o.map_rate = s.map_rate != null ? s.map_rate : (s.change_rate != null ? s.change_rate : (s.pts_change_rate || 0));
+      o.map_turnover_oku = s.map_turnover_oku != null ? s.map_turnover_oku : (s.turnover_oku != null ? s.turnover_oku : (s.pts_turnover_oku || 0));
+      o.bin = binOf(o.map_rate);
+      o.w = Math.max(Math.sqrt(Math.max(0, o.map_turnover_oku)), TILE_FLOOR);
+      o.isPtsOnly = o.map_source === 'PTS';
+      o.viaPts = o.route === 'pts' || o.route === 'both';
+      return o;
+    });
+    var cands = stocks.filter(function (s) { return s.passed; });
+    cands.sort(function (a, b) { return (b.score ? b.score.total : -99) - (a.score ? a.score.total : -99) || a.idx - b.idx; });
+    cands.forEach(function (s, i) { s.rank = i + 1; });
+    var excluded = stocks.filter(function (s) { return !s.passed; });
+    excluded.sort(function (a, b) { return b.map_rate - a.map_rate || a.idx - b.idx; });
+    var heat = stocks.filter(function (s) { return s.in_heatmap && s.industry; });
+    var ind = new Map();
+    (raw.industries || []).forEach(function (x) { ind.set(x.name, x); });
+    var candMaxRate = Math.max.apply(null, cands.map(function (s) { return s.map_rate; }).concat([10]));
+    var candMaxTurn = Math.max.apply(null, cands.map(function (s) { return s.map_turnover_oku; }).concat([10]));
+    return {
+      run: run, stocks: stocks, cands: cands, excluded: excluded, heat: heat, ind: ind,
+      hasPTS: stocks.some(function (s) { return s.pts_change_rate != null; }),
+      marketDate: run.market_date, candMaxRate: candMaxRate, candMaxTurn: candMaxTurn
+    };
+  }
+  function stats(items) {
+    var n = items.length, sr = 0, st = 0, w = 0, c = 0;
+    items.forEach(function (s) { sr += s.map_rate; st += s.map_turnover_oku || 0; w += s.w; if (s.passed) c++; });
+    return { count: n, avg: n ? sr / n : 0, sum: st, weight: w, cand: c };
+  }
+  // 業種のテーマを数え直すときの基準（設定の theme.min_shared と theme.industry_themes_shown）。
+  // theme_rules のない古いデータでは、設定の既定の 2 と 12 を使う
+  function themeRules(r) {
+    function pick(v, d) { return typeof v === 'number' && isFinite(v) && v >= 1 ? Math.floor(v) : d; }
+    r = r || {};
+    return { min_shared: pick(r.min_shared, 2), industry_themes_shown: pick(r.industry_themes_shown, 12) };
+  }
+  function groupBy(items, fn) {
+    var m = new Map();
+    items.forEach(function (s) { var k = fn(s); if (!m.has(k)) m.set(k, []); m.get(k).push(s); });
+    return m;
+  }
+  function mkGroup(key, title, items, pick) {
+    var g = stats(items); g.key = key; g.title = title; g.items = items; g.pick = pick; return g;
+  }
+
+  /* ---------- 選んだもの（業種・テーマ） ---------- */
+  function basePred(sel) {
+    switch (sel.kind) {
+      case 'industry': return function (s) { return s.industry === sel.name; };
+      case 'industries': return function (s) { return sel.names.indexOf(s.industry) >= 0; };
+      case 'theme': return function (s) { return s.themes.indexOf(sel.name) >= 0; };
+      case 'themes': return function (s) { return sel.names.indexOf(s.display_theme || '単独') >= 0; };
+    }
+    return function () { return true; };
+  }
+  function selPred(sel) {
+    if (!sel) return null;
+    var b = basePred(sel), sp = sel.sub ? basePred(sel.sub) : null;
+    // ヒートマップに入る銘柄（F4 と業種なしを除く）だけを数える
+    return function (s) { return s.in_heatmap && !!s.industry && b(s) && (!sp || sp(s)); };
+  }
+  function selLabel(x) { return x.label || x.name; }
+  function samePick(a, b) {
+    if (!a || !b || a.kind !== b.kind) return false;
+    return a.name ? a.name === b.name : JSON.stringify(a.names) === JSON.stringify(b.names);
+  }
+  // 選んだものの名札（描き直したあとに同じ見出しや棒を探すため）
+  function pickKey(p) { return p ? p.kind + ':' + (p.names ? p.names.join('|') : p.name) : ''; }
+
+  /* ---------- 敷き詰め（squarified treemap） ---------- */
+  function squarify(values, X, Y, W, H) {
+    var n = values.length, out = new Array(n);
+    var total = values.reduce(function (a, b) { return a + b; }, 0);
+    if (!n || total <= 0 || W <= 0 || H <= 0) return values.map(function () { return { x: X, y: Y, w: 0, h: 0 }; });
+    var k = (W * H) / total, areas = values.map(function (v) { return v * k; });
+    var x = X, y = Y, w = W, hh = H, i = 0;
+    function worst(sum, mn, mx, side) { var s2 = side * side, q = sum * sum; return Math.max(s2 * mx / q, q / (s2 * mn)); }
+    while (i < n) {
+      var side = Math.min(w, hh), j = i, sum = 0, mn = Infinity, mx = 0, best = Infinity;
+      while (j < n) {
+        var a = areas[j], ns = sum + a, nmn = Math.min(mn, a), nmx = Math.max(mx, a);
+        var wv = worst(ns, nmn, nmx, side);
+        if (j > i && wv > best) break;
+        sum = ns; mn = nmn; mx = nmx; best = wv; j++;
+      }
+      if (w >= hh) {
+        var sw = sum / hh, yy = y;
+        for (var p = i; p < j; p++) { var ph = areas[p] / sw; out[p] = { x: x, y: yy, w: sw, h: ph }; yy += ph; }
+        x += sw; w -= sw;
+      } else {
+        var sh = sum / w, xx = x;
+        for (var q2 = i; q2 < j; q2++) { var pw = areas[q2] / sh; out[q2] = { x: xx, y: y, w: pw, h: sh }; xx += pw; }
+        y += sh; hh -= sh;
+      }
+      i = j;
+    }
+    return out;
+  }
+
+  /* ---------- 「除外を隠す」の記憶（その端末だけ。使えないときは既定の「表示する」） ---------- */
+  var HIDE_EX_KEY = 'scan.hideExcluded';
+  function loadHideEx() {
+    try { return global.localStorage.getItem(HIDE_EX_KEY) === '1'; } catch (e) { return false; }
+  }
+  function saveHideEx(on) {
+    try { global.localStorage.setItem(HIDE_EX_KEY, on ? '1' : '0'); } catch (e) { /* 覚えられなくても画面は動く */ }
+  }
+
+  /* =================================================================== */
+  function mount(host, raw, opts) {
+    opts = opts || {};
+    var M = prepare(raw);
+    var st = { view: opts.view === 'theme' ? 'theme' : 'industry', sel: null, sort: 'score', card: null, exOpen: !!opts.exOpen, exReason: null, exAll: false, hideEx: loadHideEx() };
+    var lastTrigger = null, W = 0;
+
+    /* ---- 動き ----
+     * mo は act の中（最初の表示と、押して描き直すとき）だけ値を持つ。幅が変わっての描き直しは act を通さないので動かない。
+     * 描く関数は動きを later() に積み、act が押した場所をそろえたあとで実行する（先に動かすと位置を測り違えるため） */
+    var mo = null, after = [];
+    function calm() {
+      try { return !global.matchMedia || global.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return true; }
+    }
+    function later(fn) { if (mo) after.push(fn); }
+
+    /* ---- 見えている銘柄（「除外を隠す」のときは候補だけ） ---- */
+    function shown(s) { return !st.hideEx || !!s.passed; }
+    function visStocks() { return st.hideEx ? M.stocks.filter(shown) : M.stocks; }
+    function visHeat() { return st.hideEx ? M.heat.filter(shown) : M.heat; }
+    function hideExButton(where) {
+      var ic = icon('box', 16);
+      if (st.hideEx) add(ic, sv('path', { class: 'ck', d: ICONS.check }));
+      var b = h('button', { type: 'button', class: 'sc-btn sm tg', 'data-hide-ex': where, 'data-anchor': 'hide-' + where, 'aria-pressed': st.hideEx ? 'true' : 'false',
+        onclick: function (e) { setHideEx(!st.hideEx, where, e.currentTarget); } }, ic, '除外を隠す');
+      if (mo === 'hide') later(function () { b.classList.add('pop'); });
+      return b;
+    }
+
+    host.textContent = '';
+    var root = h('div', { class: 'scan-root', lang: 'ja', 'data-theme': opts.theme || null });
+    var selbar = h('div', { class: 'sc-selbar', hidden: true });
+    var wrap = h('main', { class: 'sc-wrap' });
+    var secBand = h('section', { class: 'sc-sec', 'aria-label': '概要' });
+    var secSp = h('section', { class: 'sc-sec', id: 'sc-scatter', 'aria-labelledby': 'sc-h-sp' });
+    var secHm = h('section', { class: 'sc-sec', id: 'sc-heat', 'aria-labelledby': 'sc-h-hm' });
+    var secLs = h('section', { class: 'sc-sec', id: 'sc-list', 'aria-labelledby': 'sc-h-ls' });
+    var secEx = h('section', { class: 'sc-sec', id: 'sc-excluded' });
+    var tip = h('div', { class: 'sc-tip', hidden: true, 'aria-hidden': 'true' });
+    var layer = h('div', { class: 'cd-layer', hidden: true });
+    add(wrap, [secBand, secSp, secHm, secLs, secEx]);
+    add(root, [selbar, wrap, tip, layer]);
+    host.appendChild(root);
+
+    /* ---- 吹き出し（マウスのときだけ） ---- */
+    function showTip(s, ev) {
+      tip.textContent = '';
+      add(tip, [
+        h('div', { class: 't', text: s.short }),
+        h('div', { class: 'm', text: [s.code, s.industry || s.market].filter(Boolean).join(' · ') }),
+        h('div', { class: 'r' },
+          h('span', null, '上昇率 ', h('b', { text: fmt.pct(s.map_rate) }), s.isPtsOnly ? '（PTS）' : ''),
+          h('span', null, '売買代金 ', h('b', { text: fmt.oku(s.map_turnover_oku, s.isPtsOnly ? 2 : 1) }))),
+        h('div', { class: 'r' },
+          s.market_cap_oku != null ? h('span', null, '時価総額 ', h('b', { text: fmt.oku(s.market_cap_oku) })) : null,
+          s.stop_high_close ? h('span', { class: 'sc-tag s', text: 'S高' }) : null),
+        h('div', { class: 'm', text: s.passed ? '候補（' + s.rank + '位・' + fmt.total(s.score ? s.score.total : 0) + '点）' : '除外：' + (s.reasons[0] || '') })
+      ]);
+      tip.hidden = false;
+      var vw = window.innerWidth, vh = window.innerHeight, r = tip.getBoundingClientRect();
+      var x = ev.clientX + 14, y = ev.clientY + 14;
+      if (x + r.width > vw - 8) x = ev.clientX - r.width - 14;
+      if (y + r.height > vh - 8) y = ev.clientY - r.height - 14;
+      tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+    }
+    function hideTip() { tip.hidden = true; }
+
+    /* ---- 色の見本（withHatch: 斜線＝除外、withS: 当日S高） ---- */
+    function rampLegend(withHatch, withS) {
+      return h('div', { class: 'sc-legend' },
+        h('span', { class: 'it sc-ramp', role: 'img', 'aria-label': '色は上昇率。' + BIN_LABELS.join('、') + 'の5段階で、濃いほど強い上昇' },
+          h('span', { text: '色＝上昇率（%）' }),
+          h('span', { class: 'sc-rampbox', 'aria-hidden': 'true' },
+            h('span', { class: 'sw' }, BIN_LABELS.map(function (_, i) { return h('i', { class: 'b' + i + 'bg' }); })),
+            h('span', { class: 'lb' }, BIN_SHORT.map(function (l) { return h('span', { text: l }); })))),
+        withHatch ? h('span', { class: 'it' }, h('i', { class: 'hatchbg', style: { display: 'inline-block', width: '22px', height: '12px', 'border-radius': '2px' } }), '斜線＝除外') : null,
+        withS ? h('span', { class: 'it' }, h('span', { class: 'sc-tag s', text: 'S' }), '当日S高') : null
+      );
+    }
+
+    /* =========================== 概要の帯 =========================== */
+    function renderBand() {
+      secBand.textContent = '';
+      var r = M.run, dd = weekday(r.market_date), f = r.funnel || {};
+      var all = f.all || M.stocks.length, prim = f.primary != null ? f.primary : M.stocks.filter(function (s) { return s.route != null; }).length;
+      var pass = f.passed != null ? f.passed : M.cands.length;
+      var time = /T(\d{2}:\d{2})/.exec(r.run_at || '');
+      var left = h('div', null,
+        h('p', { class: 'sc-kicker', text: 'scan 結果' }),
+        h('h1', { class: 'sc-date' }, dd ? dd.mo + '月' + dd.d + '日（' + dd.w + '）' : (r.market_date || '—'), dd ? h('small', { text: dd.y + '年' }) : null),
+        h('div', { class: 'sc-meta' },
+          h('span', { text: r.session === 'intraday' ? '場中' : '大引け後' }), h('span', { class: 'dot', text: '·' }),
+          h('span', { text: (time ? time[1] : '—') + ' に実行' }),
+          M.hasPTS ? [h('span', { class: 'dot', text: '·' }), h('span', { class: 'sc-tag pts', text: '夜間PTS入り' })] : null));
+      function step(cls, label, v, i) {
+        return [h('span', { class: 'lb', text: label }),
+          h('span', { class: 'tr ' + cls, 'aria-hidden': 'true' }, h('i', { class: 'gx', style: { width: (all ? v / all * 100 : 0).toFixed(1) + '%', 'animation-delay': (i * 70) + 'ms' } })),
+          h('span', { class: 'v num', 'data-v': v, text: nf(v, 0) })];
+      }
+      var nEx = M.excluded.length;
+      var fun = h('div', { class: 'sc-funnel', role: 'group', 'aria-label': '絞り込みの流れ' },
+        step('f0', '値上がりした銘柄', all, 0), step('f1', '一次条件を満たした', prim, 1), step('f2', 'すべて通過（候補）', pass, 2),
+        h('div', { class: 'ft' },
+          h('span', { text: '一次条件：上昇率（S高引けは除く）・PTS・売買代金・ETFなど。時価総額と取得失敗はそのあとで落ちる' }),
+          h('a', { href: '#sc-excluded', onclick: function (e) {
+            e.preventDefault();
+            act('exopen', null, function () { st.exOpen = true; renderExcluded(); });
+            secEx.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth', block: 'start' });
+          } }, '除外した ' + nEx + '件を見る')));
+      add(secBand, h('div', { class: 'sc-band' }, left, fun));
+      if (mo === 'load') later(function () { fun.classList.add('mo-in'); countUp(fun.querySelectorAll('.v[data-v]')); });
+      var ws = r.warnings || [];
+      if (ws.length) {
+        add(secBand, h('div', { class: 'sc-warns', role: 'status' }, ws.map(function (w) {
+          return h('div', { class: 'sc-warn' }, icon('warn', 18), h('div', null, h('b', { text: '注意' }), h('span', { text: w })));
+        })));
+      }
+    }
+
+    /* =========================== 絞り込み中の帯 =========================== */
+    function renderSelbar() {
+      selbar.textContent = '';
+      if (!st.sel) { selbar.hidden = true; return; }
+      selbar.hidden = false;
+      var pred = selPred(st.sel), nC = M.cands.filter(pred).length, nAll = M.stocks.filter(pred).length;
+      var path = h('span', { class: 'path' }, h('span', { text: selLabel(st.sel) }));
+      if (st.sel.sub) add(path, [icon('right', 14), h('span', { text: selLabel(st.sel.sub) })]);
+      add(selbar, h('div', { class: 'in' },
+        h('span', { class: 'lb', text: '絞り込み中' }), path,
+        h('span', { class: 'cnt num', text: st.hideEx ? '候補 ' + nC + '件（除外 ' + (nAll - nC) + '件は隠しています）' : '候補 ' + nC + '件 ／ 値上がり ' + nAll + '件' }),
+        h('span', { class: 'sp' }),
+        h('button', { type: 'button', class: 'sc-btn sm', onclick: function (e) { select(null, e.currentTarget); } }, icon('close', 14), '解除')));
+    }
+
+    /* =========================== 散布図 =========================== */
+    var spState = { pts: [], hov: null };
+    // 前に描いた点の位置（idx → 位置）と軸。押して描き直すとき、前の位置から動かすのに使う
+    var spMem = { pos: null, axKey: null, axes: null, lab: null, labKey: null };
+    function renderScatter() {
+      secSp.textContent = '';
+      var vis = visStocks();
+      var sub = st.hideEx
+        ? '今日値上がりした ' + M.stocks.length + '銘柄のうち、候補の ' + vis.length + '銘柄だけを描いています（除外は隠しています）。点をタップすると詳しく見られます'
+        : '今日値上がりした ' + M.stocks.length + '銘柄。点をタップすると詳しく見られます';
+      var head = h('div', { class: 'sc-head' },
+        h('div', null, h('h2', { id: 'sc-h-sp', text: '上昇率と売買代金' }),
+          h('p', { class: 'sc-sub', text: sub })),
+        hideExButton('scatter'));
+      add(secSp, head);
+      add(secSp, scatterLegend());
+      if (st.hideEx && !vis.length) {
+        spMem = { pos: null, axKey: null, axes: null, lab: null, labKey: null };
+        add(secSp, h('div', { class: 'ls-empty', text: '描ける候補がありません（除外は隠しています）' }));
+        return;
+      }
+      var box = h('div', { class: 'sp-wrap' });
+      add(secSp, box);
+      var bw = box.clientWidth || 600;
+      add(box, drawScatter(bw, vis));
+      var pred = selPred(st.sel);
+      var ptsOnly = vis.filter(function (s) { return s.isPtsOnly; }).length;
+      if (pred) {
+        var n = vis.filter(pred).length;
+        add(secSp, h('p', { class: 'sp-note', text: '「' + selLabel(st.sel) + (st.sel.sub ? ' › ' + selLabel(st.sel.sub) : '') + '」の ' + n + '銘柄を強調しています' }));
+      } else if (ptsOnly) {
+        add(secSp, h('p', { class: 'sp-note', text: '当日のランキングにない ' + ptsOnly + '銘柄は、PTS の上昇率と売買代金の位置に描いています' }));
+      }
+    }
+    function shapeIcon(kind, filled) {
+      var g = sv('svg', { width: 14, height: 14, viewBox: '-7 -7 14 14', 'aria-hidden': 'true' });
+      var st2 = filled ? { fill: 'var(--h3)', stroke: 'var(--e3)', 'stroke-width': 1.2 } : { fill: 'none', stroke: 'var(--ex)', 'stroke-width': 1.4 };
+      if (kind === 'd') add(g, sv('path', Object.assign({ d: 'M0 -6L6 0L0 6L-6 0Z' }, st2)));
+      else add(g, sv('circle', Object.assign({ r: 5 }, st2)));
+      return g;
+    }
+    function scatterLegend() {
+      var sizes = sv('svg', { width: 50, height: 26, viewBox: '0 0 50 26', 'aria-hidden': 'true' });
+      [[50, 5], [500, 18], [2000, 37]].forEach(function (p) {
+        var r = radius(p[0]); add(sizes, sv('circle', { cx: p[1], cy: 25 - r, r: r, fill: 'none', stroke: 'var(--fg2)', 'stroke-width': 1 }));
+      });
+      var thr = sv('svg', { width: 22, height: 10, 'aria-hidden': 'true' }, sv('line', { x1: 0, y1: 5, x2: 22, y2: 5, stroke: 'var(--fg2)', 'stroke-width': 1.2, 'stroke-dasharray': '5 4' }));
+      return h('div', { class: 'sp-leg' },
+        h('span', { class: 'g' },
+          h('span', { class: 'it' }, shapeIcon('c', true), '候補（塗り）'),
+          st.hideEx ? null : h('span', { class: 'it' }, shapeIcon('c', false), '除外（輪郭だけ）')),
+        h('span', { class: 'g' },
+          h('span', { class: 'it' }, shapeIcon('c', true), '当日ランキング'),
+          h('span', { class: 'it' }, shapeIcon('d', true), 'PTS経由')),
+        h('span', { class: 'it' }, h('b', { style: { 'font-size': '11px' }, text: 'S' }), '当日S高'),
+        h('span', { class: 'it' }, sizes, '大きさ＝時価総額（50・500・2,000億）'),
+        h('span', { class: 'it' }, thr, '一次条件の線'),
+        rampLegend(false, false));
+    }
+    function radius(cap) { return cap == null ? 2.8 : 3.4 + 8.6 * Math.sqrt(clamp(cap, 0, 2000) / 2000); }
+    function drawScatter(Wbox, vis) {
+      var narrow = Wbox < 560;
+      var Wd = Math.max(280, Math.floor(Wbox)), Hd = narrow ? 340 : 440;
+      var m = { l: narrow ? 46 : 56, r: narrow ? 10 : 16, t: 16, b: 32 };
+      var pw = Wd - m.l - m.r, ph = Hd - m.t - m.b;
+      // 軸の幅は見えている銘柄から決める（除外を隠すと候補が広がる）
+      var maxRate = Math.max.apply(null, vis.map(function (s) { return s.map_rate; }).concat([10]));
+      var xmin = 5, xmax = Math.max(10, Math.ceil(maxRate / 5) * 5);
+      var X = function (v) { return m.l + 8 + (v - xmin) / (xmax - xmin) * (pw - 16); };
+      var tmax = Math.max.apply(null, vis.map(function (s) { return s.map_turnover_oku || 0; }).concat([10]));
+      var ly0 = Math.log10(Y_FLOOR), ly1 = Math.log10(tmax * 1.6);
+      var Y = function (v) { return m.t + ph - (Math.log10(Math.max(v || 0, Y_FLOOR)) - ly0) / (ly1 - ly0) * ph; };
+      var svg = sv('svg', { class: 'sp-svg', width: Wd, height: Hd, viewBox: '0 0 ' + Wd + ' ' + Hd, role: 'img',
+        'aria-label': '散布図：横が上昇率、縦が売買代金（対数）。' + vis.length + '銘柄。' + (st.hideEx ? '候補だけを描いています（除外は隠しています）' : '候補は塗り、除外は輪郭') + '。表の形は下の候補の一覧にあります' });
+      var grid = sv('g', { class: 'grid' }), ax = sv('g', { class: 'ax' });
+      var step = narrow ? 10 : 5;
+      for (var v = xmin; v <= xmax + 0.001; v += step) {
+        add(grid, sv('line', { x1: X(v), x2: X(v), y1: m.t, y2: m.t + ph }));
+        add(ax, sv('text', { x: X(v), y: m.t + ph + 16, 'text-anchor': 'middle', text: '+' + v + '%' }));
+      }
+      [0.01, 0.1, 1, 10, 100, 1000, 10000].forEach(function (t) {
+        if (t > tmax * 1.6) return;
+        var y = Y(t);
+        add(grid, sv('line', { x1: m.l, x2: m.l + pw, y1: y, y2: y }));
+        add(ax, sv('text', { x: m.l - 6, y: y + 4, 'text-anchor': 'end', text: (t < 1 ? String(t) : nf(t, 0)) + '億' }));
+      });
+      add(ax, sv('text', { class: 'ttl', x: m.l + pw, y: m.t + ph + 30, 'text-anchor': 'end', text: '上昇率 →' }));
+      add(ax, sv('text', { class: 'ttl', x: 4, y: m.t - 4, text: '↑ 売買代金（対数）' }));
+      add(svg, [grid, ax]);
+      // 一次条件の線
+      var thr = sv('g', { class: 'thr' });
+      add(thr, sv('line', { x1: X(5), x2: X(5), y1: m.t, y2: m.t + ph }));
+      add(thr, sv('line', { x1: X(5), x2: m.l + pw, y1: Y(3), y2: Y(3) }));
+      add(thr, sv('text', { x: m.l + pw - 2, y: Y(3) - 5, 'text-anchor': 'end', text: '3億（当日の条件）' }));
+      if (M.hasPTS) {
+        add(thr, sv('line', { x1: X(5), x2: m.l + pw, y1: Y(0.1), y2: Y(0.1) }));
+        add(thr, sv('text', { x: m.l + pw - 2, y: Y(0.1) - 5, 'text-anchor': 'end', text: '0.1億（PTSの条件）' }));
+      }
+      add(thr, sv('text', { x: X(5) + 4, y: m.t + 10, text: '+5%' }));
+      add(svg, thr);
+      // 押して描き直すとき（幅が変わってのときは除く）だけ、前の描画からの動きを付ける
+      // 前の動きが始まって 400ms 以内（続けて押した）は、点がまだ途中にいるので動かさず、出し直すだけにする
+      var busy = !!(spMem.at && Date.now() - spMem.at < 400);
+      var prev = mo && mo !== 'load' && !busy ? spMem.pos : null, ghosts = [];
+      var regrow = !!(mo && mo !== 'load' && busy);
+      var axKey = [Wd, Hd, xmax, ly1.toFixed(4), M.hasPTS].join('|');
+      if (prev && spMem.axes && spMem.axKey !== axKey) {
+        // 軸の幅が変わった：前の目盛りを薄れさせ、新しい目盛りを出す（入れ直すと出る動きがやり直されるので fin は外す）
+        spMem.axes.forEach(function (e) { e.classList.remove('fin'); });
+        var oldAx = sv('g', { class: 'gh-ax', 'aria-hidden': 'true' }, spMem.axes);
+        svg.insertBefore(oldAx, svg.firstChild);
+        ghosts.push(oldAx);
+        [grid, ax, thr].forEach(function (e) { e.classList.add('fin'); });
+      }
+
+      var pred = selPred(st.sel);
+      var pts = vis.map(function (s) {
+        return { s: s, x: X(s.map_rate), y: Y(s.map_turnover_oku), r: s.passed ? radius(s.market_cap_oku) : Math.min(radius(s.market_cap_oku), 6), on: !pred || pred(s) };
+      });
+      var ptOf = new Map();
+      pts.forEach(function (p) { ptOf.set(p.s.idx, p); });
+      // 除外を奥、候補を手前。大きい点を先に描く
+      var order = pts.slice().sort(function (a, b) {
+        return (a.s.passed - b.s.passed) || (a.on - b.on) || (b.r - a.r);
+      });
+      var gp = sv('g', { class: 'pts' }), gs = sv('g');
+      var pos = new Map(), moved = [], nC = Math.max(1, M.cands.length - 1);
+      order.forEach(function (p) {
+        var s = p.s, base = 'pt ' + (s.passed ? 'c b' + s.bin : 'x') + (p.on ? '' : ' dim');
+        var q = prev ? prev.get(s.idx) : null;
+        // 残る点：強調が変わったら薄れる/濃くなる。新しく出る点：育つ
+        var cls = base + (st.card === s.idx ? ' on' : '') + (prev ? (q ? (q.on !== p.on ? ' dch' : '') : ' pin') : regrow ? ' pin' : '');
+        var el = s.route === 'pts'
+          ? sv('path', { class: cls, 'data-idx': s.idx, d: diamond(p.x, p.y, p.r * 1.22) })
+          : sv('circle', { class: cls, 'data-idx': s.idx, cx: p.x, cy: p.y, r: p.r });
+        var mk = s.stop_high_close ? sv('text', { class: 'smk' + (p.on ? '' : ' dim') + ((prev && !q) || regrow ? ' pin' : ''), x: p.x + p.r * 0.72 + 1, y: p.y - p.r * 0.72 - 1, text: 'S' }) : null;
+        // 最初の表示：候補は順位の順に、除外はそのあとでまとめて育つ（ずらすのは 240ms まで）
+        if (mo === 'load') el.style.animationDelay = (s.passed ? Math.round((s.rank - 1) / nC * 200) : 240) + 'ms';
+        // 残る点：前の位置に置いておき、act が場所をそろえたあとで外す（transition で今の位置へ動く）
+        if (q && (Math.abs(q.x - p.x) >= 0.5 || Math.abs(q.y - p.y) >= 0.5)) {
+          var tr = 'translate(' + (q.x - p.x).toFixed(1) + 'px,' + (q.y - p.y).toFixed(1) + 'px)';
+          el.style.transform = tr; moved.push(el);
+          if (mk) { mk.style.transform = tr; moved.push(mk); }
+        }
+        pos.set(s.idx, { x: p.x, y: p.y, r: p.r, on: p.on, cls: base, dia: s.route === 'pts' });
+        add(gp, el);
+        if (mk) add(gs, mk);
+      });
+      if (prev) {
+        // 消える点：前の位置に影を置いて薄れさせる（data-idx を付けないので、選んだ印や押す場所にはならない）
+        var gg = sv('g', { class: 'gh-pts', 'aria-hidden': 'true' });
+        prev.forEach(function (q, idx) {
+          if (pos.has(idx)) return;
+          add(gg, q.dia ? sv('path', { class: q.cls + ' gh', d: diamond(q.x, q.y, q.r * 1.22) }) : sv('circle', { class: q.cls + ' gh', cx: q.x, cy: q.y, r: q.r }));
+        });
+        if (gg.firstChild) { add(svg, gg); ghosts.push(gg); }
+      }
+      add(svg, [gp, gs]);
+      // 名前（点の上位）
+      var lab = sv('g'), labKey = [];
+      var placed = [];
+      var nLab = narrow ? 6 : 10;
+      var top = M.cands.filter(function (s) { return !pred || pred(s); }).slice(0, nLab);
+      top.forEach(function (s) {
+        var p = ptOf.get(s.idx); if (!p) return;
+        var t = s.short.length > 9 ? s.short.slice(0, 8) + '…' : s.short;
+        var tw = textW(t, 11, 600) + 2, th = 13;
+        var cand = [
+          [p.x + p.r + 4, p.y + 4], [p.x - p.r - 4 - tw, p.y + 4],
+          [p.x - tw / 2, p.y - p.r - 5], [p.x - tw / 2, p.y + p.r + 13]
+        ];
+        for (var i = 0; i < cand.length; i++) {
+          var bx = cand[i][0], by = cand[i][1] - 11, box = { x: bx, y: by, w: tw, h: th };
+          if (bx < m.l || bx + tw > m.l + pw || by < m.t || by + th > m.t + ph) continue;
+          if (placed.some(function (q) { return !(box.x + box.w < q.x || q.x + q.w < box.x || box.y + box.h < q.y || q.y + q.h < box.y); })) continue;
+          placed.push(box);
+          add(lab, sv('text', { class: 'lbl', x: bx, y: cand[i][1], text: t }));
+          labKey.push(t + '@' + Math.round(bx) + ',' + Math.round(cand[i][1]));
+          break;
+        }
+      });
+      labKey = labKey.join(';');
+      if (prev && spMem.lab && spMem.labKey !== labKey) {
+        // 名前が変わった：前の名前を薄れさせ、点が動き終わるころに新しい名前を出す
+        spMem.lab.setAttribute('class', 'gh-ax');
+        add(svg, spMem.lab);
+        ghosts.push(spMem.lab);
+        lab.setAttribute('class', 'lin');
+      }
+      add(svg, lab);
+      spMem = { pos: pos, axKey: axKey, axes: [grid, ax, thr], lab: lab, labKey: labKey, at: moved.length ? Date.now() : 0 };
+      if (mo === 'load') later(function () { svg.classList.add('mo-in'); });
+      if (moved.length) later(function () {
+        void svg.getBoundingClientRect();  // 前の位置を一度確定させてから外す
+        moved.forEach(function (e) { e.style.removeProperty('transform'); });
+      });
+      if (ghosts.length) later(function () { setTimeout(function () { ghosts.forEach(function (e) { e.remove(); }); }, 400); });
+      // 開いている銘柄の輪
+      var onRing = sv('g');
+      if (st.card != null) {
+        var cp = ptOf.get(st.card);
+        if (cp) add(onRing, sv('circle', { class: 'onr', cx: cp.x, cy: cp.y, r: cp.r + 4 }));
+      }
+      add(svg, onRing);
+      var hov = sv('circle', { class: 'hov', r: 0, cx: -20, cy: -20 });
+      add(svg, hov);
+      // 押す場所：いちばん近い点
+      var hit = sv('rect', { class: 'hit', x: m.l, y: 0, width: pw, height: m.t + ph + 6 });
+      function nearest(ev) {
+        var rc = svg.getBoundingClientRect(), sx = Wd / rc.width;
+        var mx = (ev.clientX - rc.left) * sx, my = (ev.clientY - rc.top) * sx;
+        var best = null, bd = 26 * 26;
+        pts.forEach(function (p) {
+          var dx = p.x - mx, dy = p.y - my, d = dx * dx + dy * dy - (p.r * p.r);
+          if (!p.on) d += 400;
+          if (d < bd) { bd = d; best = p; }
+        });
+        return best;
+      }
+      hit.addEventListener('pointermove', function (ev) {
+        if (ev.pointerType !== 'mouse') return;
+        var p = nearest(ev);
+        if (!p) { hov.setAttribute('r', 0); hideTip(); hit.style.cursor = 'default'; return; }
+        hov.setAttribute('cx', p.x); hov.setAttribute('cy', p.y); hov.setAttribute('r', p.r + 3);
+        hit.style.cursor = 'pointer';
+        showTip(p.s, ev);
+      });
+      hit.addEventListener('pointerleave', function () { hov.setAttribute('r', 0); hideTip(); });
+      hit.addEventListener('click', function (ev) { var p = nearest(ev); if (p) { hideTip(); openCard(p.s, null); } });
+      add(svg, hit);
+      return svg;
+    }
+    function diamond(x, y, r) { return 'M' + x + ' ' + (y - r) + 'L' + (x + r) + ' ' + y + 'L' + x + ' ' + (y + r) + 'L' + (x - r) + ' ' + y + 'Z'; }
+
+    /* =========================== ヒートマップ =========================== */
+    function renderHeat() {
+      secHm.textContent = '';
+      var head = h('div', { class: 'sc-head' },
+        h('div', null, h('h2', { id: 'sc-h-hm', text: '業種・テーマのヒートマップ' }),
+          h('p', { class: 'sc-sub', text: '1枚が1銘柄。面積＝売買代金（平方根）、色＝上昇率。' + (st.hideEx ? '除外した銘柄は隠しています。' : '除外した銘柄も入れています。') + '枠の見出しをタップすると中を深掘りできます' })));
+      add(secHm, head);
+      var ctrl = h('div', { class: 'hm-ctrl' });
+      var tg = h('div', { class: 'hm-tg' });
+      if (!st.sel) {
+        add(tg, h('div', { class: 'sc-seg', role: 'group', 'aria-label': '大きな枠' },
+          [['industry', '業種で見る'], ['theme', 'テーマで見る']].map(function (o) {
+            return h('button', { type: 'button', 'data-anchor': 'view-' + o[0], 'aria-pressed': st.view === o[0] ? 'true' : 'false',
+              onclick: function (e) { if (st.view !== o[0]) act('view', e.currentTarget, function () { st.view = o[0]; renderHeat(); }); } }, o[1]);
+          })));
+      }
+      add(tg, hideExButton('heat'));
+      add(ctrl, [tg, rampLegend(!st.hideEx, true)]);
+      add(secHm, ctrl);
+      var body = h('div', { class: 'hm-body' });
+      add(secHm, body);
+      if (!st.sel && !visHeat().length) {
+        add(body, h('div', { class: 'ls-empty', text: st.hideEx && M.heat.length ? '表示できる候補がありません（除外は隠しています）' : '表示できる銘柄がありません' }));
+        return;
+      }
+      if (st.sel) renderDrill(body); else renderOverview(body);
+    }
+    function overviewGroups() {
+      var m, out = [], heat = visHeat();
+      if (st.view === 'industry') {
+        m = groupBy(heat, function (s) { return s.industry; });
+        m.forEach(function (items, k) { out.push(mkGroup(k, k, items, { kind: 'industry', name: k })); });
+      } else {
+        m = groupBy(heat, function (s) { return s.display_theme || '単独'; });
+        m.forEach(function (items, k) {
+          out.push(mkGroup(k, k === '単独' ? '単独（共通テーマなし）' : k, items, k === '単独' ? { kind: 'themes', names: ['単独'], label: '単独' } : { kind: 'theme', name: k }));
+        });
+      }
+      return out.sort(function (a, b) { return b.sum - a.sum; });
+    }
+    function otherGroup(folded, mode) {
+      var items = [], names = [];
+      folded.forEach(function (g) { items = items.concat(g.items); names = names.concat(g.pick.kind === 'industry' ? [g.pick.name] : g.pick.kind === 'theme' ? [g.key] : g.pick.names); });
+      var label, title, pick;
+      if (mode === 'industry') { label = 'その他の業種'; title = label + '（' + folded.length + '業種）'; pick = { kind: 'industries', names: names, label: label }; }
+      else { label = mode === 'drill-theme' ? 'そのほかのテーマ' : 'その他のテーマ'; title = label + '（' + folded.length + '）'; pick = { kind: 'themes', names: names, label: label }; }
+      var g = mkGroup('__other', title, items, pick); g.isOther = true; return g;
+    }
+    function renderOverview(body) {
+      var Wb = body.clientWidth || 600;
+      var groups = overviewGroups();
+      var mode = st.view === 'industry' ? 'industry' : 'theme';
+      var keep = groups.filter(function (g) { return mode === 'industry' || (g.count >= 3 && g.key !== '単独'); });
+      var fold = groups.filter(function (g) { return keep.indexOf(g) < 0; });
+      var onGroup = function (g, el) { select(g.pick, el); };
+      if (Wb >= 860) treemap(body, keep, fold, mode, Wb, onGroup, null);
+      else rows(body, keep, fold, mode, Wb, onGroup, null);
+      if (mode === 'theme') add(body, h('p', { class: 'dr-hint', text: '1銘柄は「表示テーマ」（今日いちばん多くの銘柄と共通するテーマ）の枠に1枚だけ入ります。3銘柄未満のテーマは「その他のテーマ」にまとめています' }));
+      // 最初の表示と、業種/テーマの切り替え：枠ごとに順に出る
+      if (mo === 'load' || mo === 'view') later(function () { body.classList.add('mo-in'); });
+    }
+    // 枠の名札（押した見出しを探し直す data-anchor と、動かす枠の data-gk に使う）と、順に出すときの遅れ
+    function groupKey(g, isSel) { return (isSel ? 'dr-g:' : 'ov:') + pickKey(g.pick); }
+    function groupDelay(i) { return Math.min(i * 30, 270) + 'ms'; }
+    function treemap(body, keep, fold, mode, Wb, onGroup, isSel) {
+      var Hb = Math.round(clamp(Wb * 0.62, 400, 680));
+      var MINW = 100, MINH = 86, layout = null;
+      keep = keep.slice(); fold = fold.slice();
+      for (var it = 0; it < 80 && !layout; it++) {
+        var list = keep.slice().sort(function (a, b) { return b.weight - a.weight; });
+        if (fold.length) list.push(otherGroup(fold, mode));
+        var rects = squarify(list.map(function (g) { return g.weight; }), 0, 0, Wb, Hb);
+        var bad = null;
+        list.forEach(function (g, i) { if (rects[i].w < MINW || rects[i].h < MINH) bad = bad || g; });
+        if (!bad || keep.length <= 1) { layout = list.map(function (g, i) { return [g, rects[i]]; }); break; }
+        var victim = bad.isOther ? keep.reduce(function (a, b) { return a.weight < b.weight ? a : b; }) : bad;
+        keep = keep.filter(function (g) { return g !== victim; }); fold.push(victim);
+      }
+      var tm = h('div', { class: 'tm', style: { height: Hb + 'px' } });
+      layout.forEach(function (p, gi) {
+        var g = p[0], r = p[1];
+        var gx = r.x + 2, gy = r.y + 2, gw = Math.max(0, r.w - 4), gh = Math.max(0, r.h - 4);
+        var pressed = isSel && samePick(isSel, g.pick);
+        var box = h('div', { class: 'tm-g' + (pressed ? ' sel' : '') + (g.isOther ? ' other' : ''), 'data-gk': groupKey(g, isSel),
+          style: { left: gx + 'px', top: gy + 'px', width: gw + 'px', height: gh + 'px', '--gd': groupDelay(gi) } });
+        add(box, groupHeader('tm-gh', g, onGroup, pressed, groupKey(g, isSel)));
+        var tb = h('div', { class: 'tb', style: { position: 'absolute', left: '0', top: '44px', width: gw + 'px', height: Math.max(0, gh - 44) + 'px' } });
+        tiles(tb, g.items, gw, gh - 44);
+        add(box, tb);
+        add(tm, box);
+      });
+      add(body, tm);
+    }
+    function groupHeader(cls, g, onGroup, pressed, key) {
+      var aria = g.title + '、' + g.count + '件、平均' + fmt.pct(g.avg) + '、売買代金の合計 ' + fmt.oku(g.sum) + '、候補 ' + g.cand + '件';
+      return h('button', { type: 'button', class: cls, 'data-anchor': key, 'aria-label': aria, 'aria-pressed': pressed == null ? null : (pressed ? 'true' : 'false'), onclick: function (e) { onGroup(g, e.currentTarget); } },
+        h('span', { class: 'tx' },
+          h('span', { class: 'tm-gn', text: g.title }),
+          h('span', { class: 'tm-gs', text: g.count + '件 · 平均' + fmt.pct(g.avg) + ' · ' + fmt.oku(g.sum) })),
+        icon('right', 14));
+    }
+    function rows(body, keep, fold, mode, Wb, onGroup, isSel) {
+      var total = keep.concat(fold).reduce(function (a, g) { return a + g.weight; }, 0);
+      var k2 = keep.filter(function (g) { return g.weight / total >= 0.012; });
+      var f2 = fold.concat(keep.filter(function (g) { return k2.indexOf(g) < 0; }));
+      var list = k2.slice();
+      if (f2.length) list.push(otherGroup(f2, mode));
+      var target = clamp(Wb * 1.7, 460, 760);
+      var kk = target / list.reduce(function (a, g) { return a + g.weight; }, 0);
+      var wrapEl = h('div', { class: 'hr-list' });
+      var tw = Wb - 6;
+      list.forEach(function (g, gi) {
+        var pressed = isSel && samePick(isSel, g.pick);
+        var row = h('div', { class: 'hr' + (pressed ? ' sel' : '') + (g.isOther ? ' other' : ''), 'data-gk': groupKey(g, isSel), style: { '--gd': groupDelay(gi) } });
+        add(row, groupHeader('hr-h', g, onGroup, pressed, groupKey(g, isSel)));
+        var hh = Math.round(clamp(kk * g.weight, 40, 520));
+        var tb = h('div', { class: 'hr-b tb', style: { height: hh + 'px' } });
+        tiles(tb, g.items, tw, hh);
+        add(row, tb);
+        add(wrapEl, row);
+      });
+      add(body, wrapEl);
+    }
+    function tiles(container, items, w, hh) {
+      if (w <= 0 || hh <= 0) return;
+      var arr = items.slice().sort(function (a, b) { return b.w - a.w; });
+      var rects = squarify(arr.map(function (s) { return s.w; }), 0, 0, w, hh);
+      var sub = st.sel && st.sel.sub ? basePred(st.sel.sub) : null;
+      arr.forEach(function (s, i) {
+        var r = rects[i];
+        var tw = Math.max(0, r.w - 2), th = Math.max(0, r.h - 2);
+        if (tw < 1 || th < 1) return;
+        var cls = 'tm-t b' + s.bin + (s.passed ? '' : ' ex') + (s.stop_high_close && tw >= 18 && th >= 18 ? ' has-s' : '') + (sub && !sub(s) ? ' dim' : '') + (st.card === s.idx ? ' on' : '');
+        var label = s.short + '、' + fmt.pct(s.map_rate) + '、売買代金 ' + fmt.oku(s.map_turnover_oku, s.isPtsOnly ? 2 : 1) + (s.passed ? '、候補' : '、除外') + (s.stop_high_close ? '、当日S高' : '');
+        var b = h('button', { type: 'button', class: cls, 'data-idx': s.idx, 'aria-label': label,
+          style: { left: (r.x + 1) + 'px', top: (r.y + 1) + 'px', width: tw + 'px', height: th + 'px' },
+          onclick: function (e) { hideTip(); openCard(s, e.currentTarget); },
+          onpointermove: function (e) { if (e.pointerType === 'mouse') showTip(s, e); },
+          onpointerleave: hideTip });
+        if (tw >= 30 && th >= 20) add(b, h('span', { class: 'n', text: s.short }));
+        if (tw >= 46 && th >= 34) add(b, h('span', { class: 'r', text: fmt.pct(s.map_rate) }));
+        if (s.stop_high_close && tw >= 18 && th >= 18) add(b, h('span', { class: 'sbg', 'aria-hidden': 'true', text: 'S' }));
+        else if (s.stop_high_close && tw >= 8 && th >= 8) add(b, h('span', { class: 'sbg', 'aria-hidden': 'true', style: { width: '8px', height: '8px', 'font-size': '0', right: '1px', top: '1px' } }));
+        add(container, b);
+      });
+    }
+
+    function drillModel(sel) {
+      var items = visHeat().filter(basePred(sel)), s0 = stats(items), bars = [], groups = [], gmode;
+      function barsBy(fn, mkPick) {
+        var out = [];
+        groupBy(items, fn).forEach(function (arr, k) { var x = stats(arr); out.push({ label: k, count: x.count, avg: x.avg, sum: x.sum, pick: mkPick(k) }); });
+        return out.sort(function (a, b) { return b.count - a.count || b.avg - a.avg; });
+      }
+      function industryGroups() {
+        var out = [];
+        groupBy(items, function (s) { return s.industry; }).forEach(function (arr, k) { out.push(mkGroup(k, k, arr, { kind: 'industry', name: k })); });
+        return out.sort(function (a, b) { return b.sum - a.sum; });
+      }
+      if (sel.kind === 'industry') {
+        // サーバーの業種のテーマは除外も数えている。除外を隠すときは見えている銘柄から数え直す
+        var ind = st.hideEx ? null : M.ind.get(sel.name);
+        var tl = ind && ind.themes && ind.themes.length ? ind.themes.map(function (t) { return { label: t.name, count: t.count, avg: t.avg_change_rate, sum: t.turnover_oku_sum, pick: { kind: 'theme', name: t.name } }; }) : [];
+        if (!tl.length) {
+          var rules = themeRules(M.run.theme_rules), cnt = new Map();
+          items.forEach(function (s) { s.themes.forEach(function (t) { if (!cnt.has(t)) cnt.set(t, []); cnt.get(t).push(s); }); });
+          cnt.forEach(function (arr, k) { if (arr.length >= rules.min_shared) { var x = stats(arr); tl.push({ label: k, count: x.count, avg: x.avg, sum: x.sum, pick: { kind: 'theme', name: k } }); } });
+          tl.sort(function (a, b) { return b.count - a.count || b.avg - a.avg; }); tl = tl.slice(0, rules.industry_themes_shown);
+        }
+        bars = tl;
+        var gm = groupBy(items, function (s) { return s.display_theme || '単独'; });
+        gm.forEach(function (arr, k) { groups.push(mkGroup(k, k === '単独' ? '単独（共通テーマなし）' : k, arr, k === '単独' ? { kind: 'themes', names: ['単独'], label: '単独' } : { kind: 'theme', name: k })); });
+        groups.sort(function (a, b) { return b.sum - a.sum; });
+        gmode = 'drill-theme';
+        return { title: sel.name, s: s0, bars: bars, barTitle: 'この業種の中のテーマ', barNote: '銘柄数の多い順。1銘柄が複数のテーマに数えられます', groups: groups, gmode: gmode, gTitle: '表示テーマごとのタイル' };
+      }
+      if (sel.kind === 'industries') {
+        bars = barsBy(function (s) { return s.industry; }, function (k) { return { kind: 'industry', name: k }; });
+        return { title: selLabel(sel), s: s0, bars: bars, barTitle: 'まとめた業種', barNote: '銘柄数の多い順', groups: industryGroups(), gmode: 'industry', gTitle: '業種ごとのタイル' };
+      }
+      if (sel.kind === 'theme') {
+        bars = barsBy(function (s) { return s.industry; }, function (k) { return { kind: 'industry', name: k }; });
+        return { title: 'テーマ「' + sel.name + '」', s: s0, bars: bars, barTitle: 'このテーマを持つ銘柄の業種', barNote: '銘柄数の多い順。表示テーマが別の銘柄も含みます', groups: industryGroups(), gmode: 'industry', gTitle: '業種ごとのタイル' };
+      }
+      bars = barsBy(function (s) { return s.display_theme || '単独'; }, function (k) { return { kind: 'themes', names: [k], label: k }; });
+      var g2 = [];
+      groupBy(items, function (s) { return s.display_theme || '単独'; }).forEach(function (arr, k) { g2.push(mkGroup(k, k, arr, { kind: 'themes', names: [k], label: k })); });
+      g2.sort(function (a, b) { return b.sum - a.sum; });
+      return { title: selLabel(sel), s: s0, bars: bars, barTitle: 'まとめたテーマ', barNote: '銘柄数の多い順', groups: g2, gmode: 'drill-theme', gTitle: 'テーマごとのタイル' };
+    }
+    function renderDrill(body) {
+      var dm = drillModel(st.sel), Wb = body.clientWidth || 600;
+      add(body, h('div', { class: 'dr-top' },
+        h('button', { type: 'button', class: 'sc-btn', onclick: function (e) { select(null, e.currentTarget); } }, icon('left', 16), '全体に戻る'),
+        h('div', null,
+          h('h3', { text: dm.title }),
+          h('p', { class: 'num', text: dm.s.count + '件 · 平均' + fmt.pct(dm.s.avg) + ' · 売買代金 ' + fmt.oku(dm.s.sum) + ' · 候補 ' + dm.s.cand + '件' }))));
+      if (!dm.s.count) {
+        add(body, h('div', { class: 'ls-empty', text: st.hideEx ? 'この枠には候補がありません（除外は隠しています）' : 'この枠に入る銘柄はありません' }));
+        return;
+      }
+      // 棒グラフ
+      add(body, h('div', { class: 'dr-sec-t' }, h('h4', { text: dm.barTitle }), h('span', { text: dm.barNote })));
+      var maxC = Math.max.apply(null, dm.bars.map(function (b) { return b.count; }).concat([1]));
+      var bl = h('div', { class: 'br-list' });
+      add(bl, h('div', { class: 'br-head', 'aria-hidden': 'true' }, h('span', { text: '名前' }), h('span', { text: '銘柄数' }), h('span', { text: '' }), h('span', { text: '平均上昇率' }), h('span', { text: '売買代金の合計' })));
+      dm.bars.forEach(function (b, bi) {
+        var on = samePick(st.sel.sub, b.pick), bin = binOf(b.avg);
+        add(bl, h('button', { type: 'button', class: 'br', 'data-anchor': 'dr-b:' + pickKey(b.pick), 'aria-pressed': on ? 'true' : 'false',
+          'aria-label': b.label + '、' + b.count + '件、平均' + fmt.pct(b.avg) + '、売買代金 ' + fmt.oku(b.sum), onclick: function (e) { setSub(b.pick, e.currentTarget); } },
+          h('span', { class: 'n', text: b.label }),
+          h('span', { class: 'bar', 'aria-hidden': 'true' }, h('i', { class: 'b' + bin + 'bg gx', style: { width: (b.count / maxC * 100).toFixed(1) + '%', 'animation-delay': Math.min(bi * 30, 240) + 'ms' } })),
+          h('span', { class: 'c num', text: b.count + '件' }),
+          h('span', { class: 'a num' }, h('i', { class: 'b' + bin + 'bg' }), fmt.pct(b.avg)),
+          h('span', { class: 's num', text: fmt.oku(b.sum) })));
+      });
+      if (!dm.bars.length) add(bl, h('p', { class: 'dr-hint', text: themeRules(M.run.theme_rules).min_shared + '銘柄以上に共通するテーマはありません' }));
+      add(body, bl);
+      // 深掘りに入ったとき・除外を隠したとき（数が変わる）は棒を伸ばし直す。テーマを選んだだけのときは伸ばさない
+      if (mo === 'load' || mo === 'sel' || mo === 'hide') later(function () { bl.classList.add('mo-in'); });
+      // タイル
+      add(body, h('div', { class: 'dr-sec-t' }, h('h4', { text: dm.gTitle }),
+        h('span', { text: st.sel.sub ? '「' + selLabel(st.sel.sub) + '」以外を薄くしています' : '棒か見出しをタップすると、そのテーマの銘柄だけを強調します' })));
+      var keep = dm.groups.filter(function (g) { return dm.gmode === 'industry' || (g.count >= 2 && g.key !== '単独'); });
+      var fold = dm.groups.filter(function (g) { return keep.indexOf(g) < 0; });
+      var onG = function (g, el) { setSub(g.pick, el); };
+      if (Wb >= 860) treemap(body, keep, fold, dm.gmode, Wb, onG, st.sel.sub || {});
+      else rows(body, keep, fold, dm.gmode, Wb, onG, st.sel.sub || {});
+    }
+
+    /* =========================== 候補の一覧 =========================== */
+    var SORTS = [['score', '点'], ['rate', '上昇率'], ['turn', '売買代金'], ['cap', '時価総額']];
+    function sortKey(s) {
+      switch (st.sort) {
+        case 'rate': return s.map_rate;
+        case 'turn': return s.map_turnover_oku;
+        case 'cap': return s.market_cap_oku == null ? -1 : s.market_cap_oku;
+        default: return s.score ? s.score.total : -99;
+      }
+    }
+    function renderList() {
+      secLs.textContent = '';
+      var pred = selPred(st.sel);
+      var rowsArr = M.cands.filter(function (s) { return !pred || pred(s); });
+      rowsArr.sort(function (a, b) { return sortKey(b) - sortKey(a) || a.rank - b.rank; });
+      add(secLs, h('div', { class: 'sc-head' },
+        h('div', null, h('h2', { id: 'sc-h-ls' }, '候補の一覧 ', h('span', { class: 'num', style: { 'font-weight': '600', color: 'var(--fg2)', 'font-size': '14px' }, text: pred ? rowsArr.length + '件 ／ ' + M.cands.length + '件' : M.cands.length + '件' })),
+          h('p', { class: 'sc-sub', text: 'すべての条件を通過した銘柄。行をタップすると詳しく見られます' })),
+        !M.cands.length ? null : h('div', { class: 'ls-ctrl' }, h('span', { class: 'lb', text: '並べ替え' }),
+          h('div', { class: 'sc-seg', role: 'group', 'aria-label': '並べ替え' }, SORTS.map(function (o) {
+            return h('button', { type: 'button', 'data-anchor': 'sort-' + o[0], 'aria-pressed': st.sort === o[0] ? 'true' : 'false',
+              onclick: function (e) { act('sort', e.currentTarget, function () { st.sort = o[0]; renderList(); }); } }, o[1]);
+          })))));
+      if (pred) add(secLs, h('div', { class: 'ls-filt' }, icon('filter', 14), h('span', { text: '「' + selLabel(st.sel) + (st.sel.sub ? ' › ' + selLabel(st.sel.sub) : '') + '」で絞り込み中' }),
+        h('button', { type: 'button', class: 'sc-btn sm', 'data-keep': 'list', onclick: function (e) { select(null, e.currentTarget); } }, '解除')));
+      if (!M.cands.length) { add(secLs, h('div', { class: 'ls-empty', text: '条件を満たす銘柄はありませんでした' })); return; }
+      if (!rowsArr.length) { add(secLs, h('div', { class: 'ls-empty', text: 'この絞り込みに入る候補はありません（除外した銘柄だけです）' })); return; }
+      add(secLs, h('div', { class: 'ls-key' }, h('span', { class: 'lb', text: '点の帯' }),
+        PARTS.map(function (p) { return h('span', { class: 'it' }, h('i', { style: { background: 'var(--' + p.key + ')' } }), p.label); }),
+        h('span', { class: 'nt', text: '黒い縦線が 0。掲示板がマイナスのときは左へ伸びます' })));
+      add(secLs, h('div', { class: 'ls-th', 'aria-hidden': 'true' },
+        ['順位', '銘柄', '30日の終値', '上昇率', '売買代金（対数）', '時価総額', '点（−20〜75）', ''].map(function (t) { return h('span', { text: t }); })));
+      var list = h('div', { class: 'ls', role: 'list' });
+      var lt0 = Math.log10(0.1), lt1 = Math.log10(Math.max(M.candMaxTurn, 1));
+      rowsArr.forEach(function (s, ri) {
+        var ratePct = clamp(s.map_rate / M.candMaxRate * 100, 2, 100);
+        var turnPct = clamp((Math.log10(Math.max(s.map_turnover_oku, 0.1)) - lt0) / (lt1 - lt0) * 100, 2, 100);
+        // 棒を伸ばすのは上から GROW_ROWS 行まで（画面に入る分。下の行まで動かすと端末が重くなる）
+        var grow = ri < GROW_ROWS, gx = grow ? ' gx' : '';
+        var row = h('div', { class: 'lr' + (st.card === s.idx ? ' on' : ''), role: 'listitem', 'data-idx': s.idx, style: grow ? { '--gd': (ri * 10) + 'ms' } : null },
+          h('button', { type: 'button', class: 'hit', 'aria-label': s.short + ' の詳しい情報を開く', onclick: function (e) { openCard(s, e.currentTarget); } }),
+          h('span', { class: 'rk num', text: s.rank }),
+          h('span', { class: 'nm' }, h('b', { text: s.short }),
+            h('small', null, h('span', { class: 'num', text: s.code }), h('span', { text: s.market }),
+              h('span', { class: 'capi num', text: '時価' + fmt.oku(s.market_cap_oku) }),
+              s.stop_high_close ? h('span', { class: 'sc-tag s', text: 'S高' }) : null,
+              s.viaPts ? h('span', { class: 'sc-tag pts', text: s.route === 'both' ? '当日+PTS' : 'PTS経由' }) : null)),
+          spark(s, 88, 30),
+          h('span', { class: 'mt ra' }, h('span', { class: 'v num' }, fmt.pct(s.map_rate), s.isPtsOnly ? h('span', { class: 'sc-tag pts', text: 'PTS' }) : null),
+            h('span', { class: 'tr', 'aria-hidden': 'true' }, h('i', { class: 'b' + s.bin + 'bg' + gx, style: { width: ratePct.toFixed(1) + '%' } }))),
+          h('span', { class: 'mt tu' }, h('span', { class: 'v num' }, fmt.oku(s.map_turnover_oku, s.isPtsOnly ? 2 : 1), s.isPtsOnly ? h('span', { class: 'sc-tag pts', text: 'PTS' }) : null),
+            h('span', { class: 'tr', 'aria-hidden': 'true' }, h('i', { class: 'tv' + gx, style: { width: turnPct.toFixed(1) + '%', 'animation-delay': grow ? 'calc(var(--gd, 0ms) + 40ms)' : null } }))),
+          h('span', { class: 'cap num', text: fmt.oku(s.market_cap_oku) }),
+          h('span', { class: 'sc' }, scoreBand(s.score, 112, 10, false, grow, 'calc(var(--gd, 0ms) + 80ms)'), h('b', { class: 'num', text: s.score ? fmt.total(s.score.total) : '—' })),
+          extLink(LINK.forum(s.code), '掲示板', 'sc-btn sm fl', s.short + ' の掲示板（新しいタブ）'));
+        add(list, row);
+      });
+      add(secLs, list);
+      // 中身が変わったとき（最初・絞り込み・並べ替え）は棒を伸ばす。除外を隠しただけのときは一覧は変わらないので動かさない
+      if (mo === 'load' || mo === 'sel' || mo === 'back' || mo === 'sub' || mo === 'sort') later(function () { list.classList.add('mo-in'); });
+    }
+    function spark(s, w, hgt) {
+      var bars = s.bars || [], n = bars.length;
+      var g = sv('svg', { class: 'sk', width: w, height: hgt, viewBox: '0 0 ' + w + ' ' + hgt, 'aria-hidden': 'true' });
+      if (n < 2) { add(g, sv('text', { x: 0, y: hgt / 2 + 4, 'font-size': 10.5, fill: 'var(--muted)', text: '日足なし' })); return g; }
+      var cl = bars.map(function (b) { return b[4]; }), lo = Math.min.apply(null, cl), hi = Math.max.apply(null, cl);
+      if (hi === lo) { hi += 1; lo -= 1; }
+      var X = function (i) { return 2 + i / (n - 1) * (w - 7); }, Y = function (v) { return 3 + (1 - (v - lo) / (hi - lo)) * (hgt - 6); };
+      var d = cl.map(function (v, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1); }).join('');
+      var today = bars[n - 1][0] === M.marketDate;
+      add(g, sv('path', { d: d, fill: 'none', stroke: 'var(--fg2)', 'stroke-width': 1.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: .8 }));
+      if (today) {
+        add(g, sv('path', { d: 'M' + X(n - 2) + ' ' + Y(cl[n - 2]) + 'L' + X(n - 1) + ' ' + Y(cl[n - 1]), fill: 'none', stroke: 'var(--up)', 'stroke-width': 2.2, 'stroke-linecap': 'round' }));
+        add(g, sv('circle', { cx: X(n - 1), cy: Y(cl[n - 1]), r: 2.8, fill: 'var(--up)', stroke: 'var(--surface)', 'stroke-width': 1.2 }));
+      }
+      return g;
+    }
+    // grow: 0 の線から左右へ伸ばす（.mo-in の中で動く）。delay: 伸び始めの遅れ
+    function scoreBand(sc, w, hb, axis, grow, delay) {
+      var Hs = hb + (axis ? 16 : 0);
+      var g = sv('svg', { width: w, height: Hs, viewBox: '0 0 ' + w + ' ' + Hs, preserveAspectRatio: 'none', 'aria-hidden': axis ? null : 'true', role: axis ? 'img' : null,
+        'aria-label': axis && sc ? '点の内訳 ' + PARTS.map(function (p) { return p.label + (p.key === 'b5' ? fmt.pt1(sc[p.key]) : fmt.pt(sc[p.key])); }).join('、') : null });
+      var X = function (v) { return (v - SCORE_MIN) / (SCORE_MAX - SCORE_MIN) * w; };
+      add(g, sv('rect', { x: 0, y: 0, width: w, height: hb, rx: 2, fill: 'var(--soft2)' }));
+      if (!sc) return g;
+      var parts = grow ? sv('g', { class: 'gx', style: { 'transform-origin': X(0).toFixed(1) + 'px 0px', 'animation-delay': delay || null } }) : g;
+      var cur = 0;
+      PARTS.forEach(function (p, i) {
+        var v = sc[p.key] || 0;
+        if (v > 0) {
+          var x0 = X(cur), x1 = X(cur + v);
+          add(parts, sv('rect', { x: x0 + (cur > 0 ? 1 : 0), y: 0, width: Math.max(1, x1 - x0 - (cur > 0 ? 2 : 1)), height: hb, fill: 'var(--' + p.key + ')' }));
+          cur += v;
+        } else if (v < 0 && p.key === 'b5') {
+          add(parts, sv('rect', { x: X(v), y: 0, width: Math.max(1, X(0) - X(v) - 1), height: hb, fill: 'var(--b5)' }));
+        }
+      });
+      if (parts !== g) add(g, parts);
+      add(g, sv('line', { x1: X(0), x2: X(0), y1: -1, y2: hb + 1, stroke: 'var(--fg)', 'stroke-width': 1.2 }));
+      if (axis) {
+        var ga = sv('g', { class: 'ax' });
+        [-20, 0, 25, 50, 75].forEach(function (t) {
+          add(ga, sv('line', { x1: X(t), x2: X(t), y1: hb, y2: hb + 3, stroke: 'var(--line2)' }));
+          add(ga, sv('text', { x: clamp(X(t), 8, w - 8), y: hb + 14, 'text-anchor': t === -20 ? 'start' : t === 75 ? 'end' : 'middle', text: t === 0 ? '0' : (t < 0 ? '−' : '') + Math.abs(t) }));
+        });
+        add(g, ga);
+      }
+      return g;
+    }
+
+    /* =========================== 除外 =========================== */
+    function renderExcluded() {
+      secEx.textContent = '';
+      var ex = M.excluded;
+      var det = h('details', { class: 'ex-d', open: st.exOpen ? true : null });
+      var bars = h('div', { class: 'ex-bars', role: 'group', 'aria-label': '除外の理由ごとの件数' });
+      det.addEventListener('toggle', function () {
+        var was = st.exOpen;
+        st.exOpen = det.open;
+        // 自分で開いたときは理由の棒を伸ばす（開いた状態で作り直したときの toggle では動かさない）
+        if (det.open && !was && !calm()) bars.classList.add('mo-in');
+      });
+      add(det, h('summary', null, icon('right', 18), h('h2', { text: '除外した銘柄' }), h('span', { class: 'cnt num', text: ex.length + '件' })));
+      var inner = h('div', { class: 'ex-in' });
+      var counts = REASONS.map(function (r) { return ex.filter(r.test).length; });
+      var maxC = Math.max.apply(null, counts.concat([1]));
+      REASONS.forEach(function (r, i) {
+        var on = st.exReason === r.id;
+        add(bars, h('button', { type: 'button', class: 'ex-b' + (r.bad ? ' bad' : ''), 'aria-pressed': on ? 'true' : 'false',
+          onclick: function () { st.exReason = on ? null : r.id; st.exAll = false; renderExcluded(); } },
+          h('span', { class: 'n' }, r.bad ? icon('err', 14) : null, r.label, r.code ? h('small', { text: '（' + r.code + '）' }) : null),
+          h('span', { class: 'bar', 'aria-hidden': 'true' }, h('i', { class: 'gx', style: { width: (counts[i] / maxC * 100).toFixed(1) + '%', 'animation-delay': (i * 40) + 'ms' } })),
+          h('span', { class: 'c num', text: counts[i] + '件' })));
+      });
+      add(inner, bars);
+      if (st.exOpen && (mo === 'load' || mo === 'exopen')) later(function () { bars.classList.add('mo-in'); });
+      add(inner, h('p', { class: 'ex-note', text: '1銘柄が2つの理由に数えられることがあります。「S高で引けた」は当日S高で引けた除外銘柄の数です' + (M.cands.some(function (s) { return s.stop_high_close; }) ? '（ほかに ' + M.cands.filter(function (s) { return s.stop_high_close; }).length + '件が PTS 経由で通過）' : '') + '。棒をタップすると一覧を絞り込めます' }));
+      var rf = st.exReason ? REASONS.filter(function (r) { return r.id === st.exReason; })[0] : null;
+      var list = rf ? ex.filter(rf.test) : ex;
+      var LIMIT = 40, shown = st.exAll ? list : list.slice(0, LIMIT);
+      var rowsEl = h('div', { class: 'ex-rows', role: 'list' });
+      shown.forEach(function (s) {
+        add(rowsEl, h('div', { class: 'xr' + (st.card === s.idx ? ' on' : ''), role: 'listitem', 'data-idx': s.idx },
+          h('button', { type: 'button', class: 'hit', 'aria-label': s.short + ' の詳しい情報を開く', onclick: function (e) { openCard(s, e.currentTarget); } }),
+          h('span', { class: 'nm' }, h('b', { text: s.short }),
+            h('small', null, h('span', { class: 'num', text: s.code }), h('span', { text: s.market }), s.stop_high_close ? h('span', { class: 'sc-tag s', text: 'S高' }) : null)),
+          spark(s, 88, 30),
+          h('span', { class: 'vl num' }, h('span', { text: fmt.pct(s.map_rate) }), h('span', { text: fmt.oku(s.map_turnover_oku, s.isPtsOnly ? 2 : 1) })),
+          h('span', { class: 'pt' }, '点', h('b', { class: 'num', text: s.score ? fmt.total(s.score.total) : '—' })),
+          h('span', { class: 'rs' }, s.reasons.map(function (t) {
+            var bad = /^取得失敗/.test(t);
+            return h('span', { class: bad ? 'bad' : null }, bad ? icon('err', 12) : null, t);
+          })),
+          extLink(LINK.forum(s.code), '掲示板', 'sc-btn sm fl', s.short + ' の掲示板（新しいタブ）')));
+      });
+      add(inner, rowsEl);
+      if (list.length > shown.length) add(inner, h('div', { class: 'ex-more' }, h('button', { type: 'button', class: 'sc-btn', onclick: function () { st.exAll = true; renderExcluded(); } }, '残りの ' + (list.length - shown.length) + '件も出す')));
+      add(det, inner);
+      add(secEx, det);
+    }
+
+    /* =========================== 銘柄カード =========================== */
+    var closing = 0;  // 閉じる動きの番号。途中で開き直したら番号が変わり、あとから隠さない
+    function openCard(s, trigger, quiet) {
+      lastTrigger = trigger || null;
+      st.card = s.idx;
+      renderCard(quiet, true);
+      markOn();
+    }
+    function closeCard() {
+      if (st.card == null) return;
+      st.card = null;
+      markOn();
+      lockScroll(false);
+      if (lastTrigger && document.contains(lastTrigger)) lastTrigger.focus({ preventScroll: true });
+      if (layer.hidden || calm()) { hideLayer(); return; }
+      // スマホは下へ滑らせ、幕を薄くしてから隠す（PC は右へ少し滑らせる）
+      var gen = ++closing;
+      layer.className = 'cd-layer out';
+      // 閉じる途中はフォーカスも Tab も入れない（中にフォーカスが残りうるので aria-hidden は使わない）
+      layer.inert = true;
+      global.setTimeout(function () { if (gen === closing) hideLayer(); }, 280);
+    }
+    function hideLayer() {
+      closing++;
+      layer.hidden = true;
+      layer.textContent = '';
+      layer.className = 'cd-layer';
+      layer.inert = false;
+    }
+    // 狭い画面でカードを開いている間は下の画面を止める。止めている間に下が動く端末があるので、閉じたら開いたときの位置に戻す
+    var lockY = null;
+    function lockScroll(on) {
+      var de = document.documentElement;
+      if (on) {
+        if (lockY == null) lockY = global.scrollY;
+        de.style.setProperty('overflow', 'hidden');
+        return;
+      }
+      de.style.removeProperty('overflow');
+      if (lockY != null && Math.abs(global.scrollY - lockY) >= 1) global.scrollTo(global.scrollX, lockY);
+      lockY = null;
+    }
+    function markOn() {
+      root.querySelectorAll('.on[data-idx], .onr').forEach(function (e) { if (e.classList.contains('onr')) e.remove(); else e.classList.remove('on'); });
+      if (st.card == null) return;
+      root.querySelectorAll('[data-idx="' + st.card + '"]').forEach(function (e) {
+        if (e.tagName === 'circle' || e.tagName === 'path') {
+          var r = +(e.getAttribute('r') || 0), cx, cy;
+          if (e.tagName === 'circle') { cx = +e.getAttribute('cx'); cy = +e.getAttribute('cy'); }
+          else { var bb = e.getBBox(); cx = bb.x + bb.width / 2; cy = bb.y + bb.height / 2; r = bb.width / 2; }
+          var ring = sv('circle', { class: 'onr', cx: cx, cy: cy, r: r + 4 });
+          e.ownerSVGElement.insertBefore(ring, e.ownerSVGElement.querySelector('.hov'));
+        } else e.classList.add('on');
+      });
+    }
+    // anim: 開いたとき（幅が変わっての描き直しでは付けない）。閉じていた → 滑り出る、開いていた → 中身だけ入れ替わる
+    function renderCard(quiet, anim) {
+      if (st.card == null) { hideLayer(); lockScroll(false); return; }
+      var fresh = layer.hidden || layer.classList.contains('out');
+      var grow = !!anim && !calm();
+      closing++;
+      layer.textContent = '';
+      layer.className = 'cd-layer' + (grow ? (fresh ? ' opening' : ' swap') : '');
+      layer.inert = false;
+      var s = M.stocks[st.card];
+      layer.hidden = false;
+      var narrowVp = window.matchMedia && !window.matchMedia('(min-width: 900px)').matches;
+      lockScroll(!!narrowVp);
+      var scrim = h('div', { class: 'cd-scrim', onclick: closeCard });
+      var closeBtn = h('button', { type: 'button', class: 'cd-x', 'aria-label': '閉じる', onclick: closeCard }, icon('close', 20));
+      var panel = h('div', { class: 'cd', role: 'dialog', 'aria-modal': narrowVp ? 'true' : 'false', 'aria-labelledby': 'cd-title' });
+      panel.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.stopPropagation(); closeCard(); } });
+      add(panel, h('div', { class: 'cd-grip', 'aria-hidden': 'true' }));
+      var tags = [];
+      if (s.passed) tags.push(h('span', { class: 'sc-tag', text: '候補 ' + s.rank + '位' }));
+      else tags.push(h('span', { class: 'sc-tag', text: '除外' }));
+      if (s.stop_high_close) tags.push(h('span', { class: 'sc-tag s', text: '当日S高' }));
+      if (s.viaPts) tags.push(h('span', { class: 'sc-tag pts', text: s.route === 'both' ? '当日とPTSの両方' : 'PTS経由' }));
+      if (s.forum && s.forum.is_rough) tags.push(h('span', { class: 'sc-tag warn' }, icon('warn', 12), '荒れ'));
+      add(panel, h('div', { class: 'cd-top' },
+        h('div', { class: 'tx' },
+          h('h2', { id: 'cd-title', text: s.name }),
+          h('div', { class: 'sub' }, h('span', { class: 'num', text: s.code }), h('span', { text: s.market }),
+            s.industry ? h('span', { text: s.industry }) : null,
+            s.display_theme && s.display_theme !== '単独' ? h('span', { text: '表示テーマ：' + s.display_theme }) : null),
+          h('div', { class: 'sub', style: { 'margin-top': '6px' } }, tags)),
+        closeBtn));
+      var body = h('div', { class: 'cd-body' });
+      add(panel, body);
+      // テーマのチップ
+      if (s.shared_themes.length) {
+        add(body, h('div', { class: 'cd-chips' }, h('span', { class: 'lb', text: '今日ほかの銘柄と共通' }),
+          s.shared_themes.slice(0, 3).map(function (t) {
+            var n = M.heat.filter(function (x) { return x.themes.indexOf(t) >= 0; }).length;
+            return h('button', { type: 'button', class: 'cd-chip', 'aria-label': 'テーマ「' + t + '」で絞り込む（' + n + '件）', onclick: function () { select({ kind: 'theme', name: t }); if (narrowVp) closeCard(); secHm.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth', block: 'start' }); } },
+              t, h('small', { class: 'num', text: n + '件' }));
+          })));
+      }
+      // 大きな数字
+      var kpi = h('div', { class: 'cd-kpi' });
+      function cell(k, v, cls, extra) { return h('div', { class: cls || null }, h('div', { class: 'k' }, k, extra || null), h('div', { class: 'v num' + (String(v).length > 9 ? ' sm' : ''), text: v })); }
+      add(kpi, [cell('上昇率', fmt.pct(s.change_rate)), cell('売買代金', fmt.oku(s.turnover_oku)), cell('時価総額', fmt.oku(s.market_cap_oku)), cell('株価', fmt.yen(s.price))]);
+      if (s.pts_change_rate != null || s.pts_turnover_oku != null) {
+        add(kpi, [cell('PTS 上昇率', fmt.pct(s.pts_change_rate), 'pts'), cell('PTS 売買代金', fmt.oku(s.pts_turnover_oku, 2), 'pts')]);
+      }
+      add(body, kpi);
+      // リンク（掲示板がいちばん目立つ）
+      add(body, h('div', { class: 'cd-links' },
+        extLink(LINK.forum(s.code), '掲示板を開く', 'sc-btn ink', s.short + ' の掲示板を新しいタブで開く'),
+        h('div', { class: 'row' },
+          extLink(LINK.quote(s.code), '株価ページ', 'sc-btn', 'Yahoo!ファイナンスの株価ページ（新しいタブ）'),
+          extLink(LINK.news(s.code), '株探ニュース', 'sc-btn', '株探のニュース（新しいタブ）'))));
+      // 除外の理由
+      if (!s.passed) {
+        var bad = s.reasons.some(function (t) { return /^取得失敗/.test(t); });
+        add(body, h('div', { class: 'cd-ex' + (bad ? ' bad' : '') },
+          h('div', { class: 't' }, bad ? icon('err', 16) : icon('filter', 16), '除外した理由'),
+          h('ul', null, s.reasons.map(function (t) { return h('li', { text: t }); }))));
+      }
+      // 株価チャート
+      if (s.bars.length) {
+        var cw = Math.min(narrowVp ? window.innerWidth - 32 : 440 - 32, 520);
+        add(body, h('div', { class: 'cd-chart' + (grow ? ' mo-in' : '') }, h('h3', null, '株価', h('small', { text: '直近' + s.bars.length + '営業日' })), candles(s, cw),
+          h('div', { class: 'cd-ckey' },
+            h('span', null, h('i', { style: { background: 'var(--up)' } }), '陽線'), h('span', null, h('i', { style: { background: 'var(--down)' } }), '陰線'),
+            h('span', null, h('b', { text: 'S ' }), 'S高の日'), h('span', { text: '— 出来高の過去20日平均' }))));
+      } else if (s.passed) add(body, h('p', { class: 'cd-muted', text: '日足がありません' }));
+      // 点の内訳
+      if (s.score) {
+        var sc = s.score;
+        var why = [
+          { k: 'b1', t: '連騰 ' + (sc.streak != null ? sc.streak + '日 ' : ''), v: fmt.pt(sc.b1) },
+          { k: 'b2', t: '出来高 ' + (sc.volume_ratio != null ? fmt.times(sc.volume_ratio) + ' ' : ''), v: fmt.pt(sc.b2) },
+          { k: 'b3', t: '直近S高 ', v: fmt.pt(sc.b3) },
+          { k: 'b4', t: '連れ高 ' + (sc.same_industry != null ? sc.same_industry + '件 ' : ''), v: fmt.pt(sc.b4) },
+          { k: 'b5', t: '掲示板 ', v: fmt.pt1(sc.b5) }
+        ];
+        add(body, h('div', { class: 'cd-score' + (grow ? ' mo-in' : '') },
+          h('h3', null, '点の内訳', h('small', { text: s.passed ? '目盛りは −20〜75 で固定' : '除外した銘柄なので順位には入りません。目盛りは −20〜75 で固定' })),
+          h('div', { class: 'tot num' }, fmt.total(sc.total), h('small', { text: '点' })),
+          scoreBand(sc, Math.max(240, (narrowVp ? window.innerWidth - 32 : 408)), 16, true, true, null),
+          h('ul', { class: 'cd-why' }, why.map(function (w) {
+            var zero = Math.round((sc[w.k] || 0) * 10) === 0;
+            return h('li', { class: zero ? 'z' : null }, h('i', { style: { background: 'var(--' + w.k + ')' } }), w.t, h('b', { text: w.v }));
+          }))));
+      }
+      // 掲示板
+      if (s.forum) {
+        var f = s.forum;
+        var fm = h('div', { class: 'cd-fm' + (grow ? ' mo-in' : '') }, h('h3', null, '掲示板', f.is_rough ? h('span', { class: 'sc-tag warn' }, icon('warn', 12), '荒れ（煽りが40%以上）') : null),
+          h('div', { class: 'row num' }, h('span', null, h('b', { text: fmt.cnt(f.post_count || 0) }), ' の投稿'), h('span', null, 'ペース ', h('b', { text: fmt.pace(f.pace_per_hour) }))));
+        if (f.hype_ratio != null && f.concrete_ratio != null) {
+          var c = clamp(f.concrete_ratio, 0, 1), hy = clamp(f.hype_ratio, 0, 1 - c), nn = Math.max(0, 1 - c - hy);
+          add(fm, h('div', { class: 'cd-mix gx', role: 'img', 'aria-label': '具体的 ' + fmt.ratio(c) + '、どちらでもない ' + fmt.ratio(nn) + '、煽り ' + fmt.ratio(hy) },
+            c > 0 ? h('i', { class: 'c', style: { width: (c * 100) + '%' } }) : null,
+            nn > 0 ? h('i', { class: 'n', style: { width: (nn * 100) + '%' } }) : null,
+            hy > 0 ? h('i', { class: 'h', style: { width: (hy * 100) + '%' } }) : null));
+          add(fm, h('div', { class: 'cd-mixk num' },
+            h('span', null, h('i', { style: { background: 'var(--fg)' } }), '具体的 ' + fmt.ratio(c)),
+            h('span', null, h('i', { style: { background: 'var(--line2)' } }), 'どちらでもない ' + fmt.ratio(nn)),
+            h('span', null, h('i', { class: 'h' }), '煽り ' + fmt.ratio(hy))));
+        } else add(fm, h('p', { class: 'cd-muted', text: '投稿が1件以下なので、割合は出していません' }));
+        add(body, fm);
+        var posts = (f.recent || []);
+        if (posts.length) {
+          add(body, h('div', null, h('h3', null, '最近の投稿', h('small', { text: '具体的な投稿は囲みで、材料らしい語は印で示します' })),
+            h('ul', { class: 'cd-posts' }, posts.map(function (p) {
+              var li = h('li', { class: 'cd-post' + (p.is_concrete ? ' c' : '') });
+              if (p.is_concrete) add(li, h('div', { class: 'pt' }, h('span', { class: 'sc-tag s', text: '具体的' })));
+              add(li, markWords(p.body || '', p.matched_words || []));
+              return li;
+            }))));
+        }
+      }
+      if (s.feature) add(body, h('div', null, h('h3', { text: '特色' }), h('p', { class: 'cd-feat', text: s.feature })));
+      if (!s.passed && !s.bars.length && !s.score) add(body, h('p', { class: 'cd-muted', text: '株価チャート・点・掲示板はありません（ETF・REIT など対象外の銘柄、取得できなかった銘柄、除外した銘柄の詳しい数字を取るようになる前の回）' }));
+      add(layer, [scrim, panel]);
+      body.scrollTop = 0;
+      if (!quiet) closeBtn.focus({ preventScroll: true });
+    }
+    function markWords(text, words) {
+      text = nfkc(text);  // words はサーバーが NFKC にそろえた本文から取ったもの。印も同じ本文に付ける
+      var frag = document.createDocumentFragment();
+      var ws = words.filter(function (w) { return w && w.length; }).sort(function (a, b) { return b.length - a.length; });
+      if (!ws.length) { frag.appendChild(document.createTextNode(text)); return frag; }
+      var re = new RegExp('(' + ws.map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'g');
+      var last = 0, m;
+      while ((m = re.exec(text))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var mk = document.createElement('mark'); mk.textContent = m[0]; frag.appendChild(mk);
+        last = m.index + m[0].length;
+        if (m[0].length === 0) re.lastIndex++;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      return frag;
+    }
+    function candles(s, Wc) {
+      var bars = s.bars, n = bars.length;
+      var padL = 2, padR = 48, top = 18, ph = 150, gap = 12, vh = 50, bottom = 18;
+      var Hc = top + ph + gap + vh + bottom;
+      var slots = Math.max(n, 30), sw = (Wc - padL - padR) / slots, bw = clamp(sw * 0.62, 2, 9);
+      var x0 = padL + (slots - n) * sw;
+      var cx = function (i) { return x0 + sw * i + sw / 2; };
+      var lo = Infinity, hi = -Infinity, vmax = 0;
+      bars.forEach(function (b) { lo = Math.min(lo, b[3]); hi = Math.max(hi, b[2]); vmax = Math.max(vmax, b[5]); });
+      var pad = (hi - lo) * 0.06 || hi * 0.02 || 1; lo -= pad; hi += pad * 1.6;
+      var Y = function (v) { return top + ph - (v - lo) / (hi - lo) * ph; };
+      var vb = top + ph + gap + vh;
+      var V = function (v) { return vb - (vmax ? v / vmax * vh : 0); };
+      var today = n && bars[n - 1][0] === M.marketDate;
+      var g = sv('svg', { width: Wc, height: Hc, viewBox: '0 0 ' + Wc + ' ' + Hc, role: 'img',
+        'aria-label': '直近' + n + '営業日のローソク足と出来高' + (today ? '。最後の足が今日' : '。当日の足はまだありません') });
+      // 目盛り
+      var ticks = niceTicks(lo, hi, 4);
+      var tstep = ticks.length > 1 ? ticks[1] - ticks[0] : 1, tdec = tstep >= 1 ? 0 : tstep >= 0.1 ? 1 : 2;
+      ticks.forEach(function (t) {
+        add(g, sv('line', { class: 'gl', x1: padL, x2: Wc - padR + 4, y1: Y(t), y2: Y(t) }));
+        add(g, sv('text', { x: Wc - padR + 8, y: Y(t) + 4, text: nf(t, tdec) }));
+      });
+      add(g, sv('line', { class: 'gl', x1: padL, x2: Wc - padR + 4, y1: vb, y2: vb }));
+      if (today) {
+        add(g, sv('rect', { class: 'td', x: cx(n - 1) - sw / 2, y: top - 14, width: sw, height: vb - top + 14 }));
+        add(g, sv('text', { class: 'tdl', x: cx(n - 1), y: top - 4, 'text-anchor': 'end', text: '今日' }));
+      } else {
+        add(g, sv('text', { class: 'nob', x: padL + 2, y: 12, text: '当日の足はまだありません' }));
+      }
+      bars.forEach(function (b, i) {
+        var o = b[1], hg = b[2], l = b[3], c = b[4], up = c >= o, x = cx(i), cls = up ? 'up' : 'dn';
+        // 開くとき（.mo-in の中）：足は始値の線から、出来高は下の線から伸びる。左から少しずつずらす（160ms まで）
+        var dl = 'calc(var(--gd, 0ms) + ' + Math.round(i / Math.max(1, n - 1) * 160) + 'ms)';
+        var cg = sv('g', { class: 'gy', style: { 'transform-origin': x.toFixed(1) + 'px ' + Y(o).toFixed(1) + 'px', 'animation-delay': dl } });
+        add(cg, sv('line', { class: cls, x1: x, x2: x, y1: Y(hg), y2: Y(l), 'stroke-width': 1 }));
+        var y1 = Y(Math.max(o, c)), y2 = Y(Math.min(o, c));
+        add(cg, sv('rect', { class: cls, x: x - bw / 2, y: y1, width: bw, height: Math.max(1, y2 - y1), 'stroke-width': 0 }));
+        if (b[6]) add(cg, sv('text', { class: 'csm', x: x, y: Y(hg) - 4, 'text-anchor': 'middle', text: 'S' }));
+        add(g, cg);
+        var isT = today && i === n - 1;
+        add(g, sv('rect', { class: (up ? 'vu' : 'vd') + (isT ? ' t' : '') + ' gy', x: x - bw / 2, y: V(b[5]), width: bw, height: Math.max(0.5, vb - V(b[5])),
+          style: { 'transform-origin': x.toFixed(1) + 'px ' + vb + 'px', 'animation-delay': dl } }));
+      });
+      // 出来高の過去20日平均（今日を除く20本）
+      var endI = today ? n - 1 : n;
+      if (endI >= 20) {
+        var sum = 0; for (var i = endI - 20; i < endI; i++) sum += bars[i][5];
+        var avg = sum / 20, ya = V(avg);
+        add(g, sv('line', { class: 'avg', x1: cx(endI - 20) - sw / 2, x2: cx(n - 1) + sw / 2, y1: ya, y2: ya }));
+        add(g, sv('text', { class: 'avgl', x: cx(endI - 20) - sw / 2, y: Math.min(ya - 4, vb - 4), text: '20日平均' }));
+        var ratio = s.score && s.score.volume_ratio != null ? s.score.volume_ratio : (avg ? bars[n - 1][5] / avg : null);
+        if (ratio != null) add(g, sv('text', { class: 'rt', x: Wc - padR + 8, y: top + ph + gap + 10, text: fmt.times(ratio) }));
+      }
+      add(g, sv('text', { x: Wc - padR + 8, y: vb - 2, text: '出来高' }));
+      // 日付
+      [0, Math.floor((n - 1) / 2), n - 1].forEach(function (i, k) {
+        if (i < 0 || !bars[i]) return;
+        var t = String(bars[i][0]).slice(5).replace('-', '/');
+        add(g, sv('text', { x: cx(i), y: Hc - 4, 'text-anchor': k === 0 ? 'start' : k === 2 ? 'end' : 'middle', text: t }));
+      });
+      return g;
+    }
+    function niceTicks(lo, hi, count) {
+      var span = hi - lo, step = Math.pow(10, Math.floor(Math.log10(span / count)));
+      var err = span / count / step;
+      if (err >= 7.5) step *= 10; else if (err >= 3.5) step *= 5; else if (err >= 1.5) step *= 2;
+      var out = [];
+      for (var t = Math.ceil(lo / step) * step; t <= hi; t += step) out.push(Math.round(t * 1e6) / 1e6);
+      return out;
+    }
+
+    /* =========================== 状態の変更 =========================== */
+    // 描き直したあと、押した部品（data-anchor が同じもの）を探し直す
+    function anchorOf(key) {
+      if (!key) return null;
+      var els = root.querySelectorAll('[data-anchor]');
+      for (var i = 0; i < els.length; i++) if (els[i].getAttribute('data-anchor') === key) return els[i];
+      return null;
+    }
+    // 押して描き直すときは、押した部品を指の下に保つ（幅が変わっての描き直しでは使わない）。
+    // 部品がなくなったら（全体に戻る など）ヒートマップの上端を元の位置に保つ。上端が画面の上に隠れていたら画面の上に出す
+    // （絞り込み中の帯が出ているときは、その帯の下を画面の上とみなす）
+    // 動き（kind）は描いたあと・位置をそろえたあとに付ける。動きの失敗で画面を止めない
+    function act(kind, trigger, fn, from) {
+      var key = trigger ? trigger.getAttribute('data-anchor') : null;
+      var t0 = key ? trigger.getBoundingClientRect().top : 0;
+      var h0 = secHm.getBoundingClientRect().top;
+      // 一覧の「解除」（data-keep="list"）は、部品がなくなっても一覧の上端を元の位置に保つ（ヒートマップへ飛ばさない）。
+      // 絞り込み中の帯の「解除」も、ヒートマップの下端が帯より上（もう一覧や除外を読んでいる）なら同じにする
+      var keepList = !!(trigger && (trigger.getAttribute('data-keep') === 'list' ||
+        (selbar.contains(trigger) && secHm.getBoundingClientRect().bottom <= selbar.getBoundingClientRect().bottom)));
+      var l0 = keepList ? secLs.getBoundingClientRect().top : 0;
+      var focused = !!(key && trigger.contains(document.activeElement));
+      mo = calm() ? null : kind;
+      after = [];
+      var snap = mo === 'sel' || mo === 'back' || mo === 'hide' ? snapHeat(mo, trigger) : null, jobs;
+      try { fn(); } finally { jobs = after; after = []; mo = null; }
+      var again = anchorOf(key);
+      if (trigger) {
+        var dy;
+        if (again) dy = again.getBoundingClientRect().top - t0;
+        else if (keepList) dy = secLs.getBoundingClientRect().top - l0;
+        else {
+          var lim = selbar.hidden ? 0 : Math.max(0, selbar.getBoundingClientRect().bottom);
+          dy = secHm.getBoundingClientRect().top - (h0 < lim ? lim : h0);
+        }
+        if (Math.abs(dy) >= 1) global.scrollBy(0, dy);
+        if (again && focused) again.focus({ preventScroll: true });
+      }
+      if (snap) jobs.unshift(function () { playHeat(kind, snap, from); });
+      jobs.forEach(function (job) {
+        try { job(); } catch (e) { if (global.console) global.console.warn('scan: 動きを付けられませんでした', e); }
+      });
+      return again;
+    }
+    function centerOf(el) {
+      if (!el) return null;
+      var r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    // 描き直す前のヒートマップ：除外を隠すときは枠の位置、深掘りに入るときは押した見出しの中心（画面の座標）
+    function snapHeat(kind, trigger) {
+      var s = { groups: null, origin: null };
+      if (kind === 'hide') {
+        s.groups = new Map();
+        secHm.querySelectorAll('[data-gk]').forEach(function (e) {
+          var r = e.getBoundingClientRect();
+          s.groups.set(e.getAttribute('data-gk'), { x: r.left, y: r.top });
+        });
+      } else if (kind === 'sel' && trigger && secHm.contains(trigger)) s.origin = centerOf(trigger);
+      return s;
+    }
+    // 深掘り：押した見出しの場所（指の下）から拡大して入る。戻る：前に見ていた枠の見出しから縮小して入る。
+    // 除外を隠す：残った枠は前の位置から今の位置へ動き、タイルは薄い状態から濃くなる
+    function playHeat(kind, snap, from) {
+      var body = secHm.querySelector('.hm-body');
+      if (!body) return;
+      if (kind === 'sel' || kind === 'back') {
+        var o = kind === 'sel' ? snap.origin : centerOf(anchorOf('ov:' + pickKey(from)));
+        var br = body.getBoundingClientRect();
+        var ox = o ? o.x - br.left : br.width / 2, oy = o ? o.y - br.top : 0;
+        body.style.transformOrigin = Math.round(ox) + 'px ' + Math.round(oy) + 'px';
+        body.classList.add(kind === 'sel' ? 'mo-zin' : 'mo-zout');
+        return;
+      }
+      if (kind !== 'hide' || !snap.groups) return;
+      // 先に全部の位置を読み、そのあとでまとめて書く（読み書きを交互にすると、枠ごとにレイアウトが走る）
+      var plan = [];
+      body.querySelectorAll('[data-gk]').forEach(function (e) {
+        var p = snap.groups.get(e.getAttribute('data-gk'));
+        var r = p ? e.getBoundingClientRect() : null;
+        plan.push({ e: e, dx: p ? p.x - r.left : 0, dy: p ? p.y - r.top : 0, isNew: !p });
+      });
+      var moved = [];
+      plan.forEach(function (it) {
+        if (it.isNew) { it.e.classList.add('gin'); return; }
+        if (Math.abs(it.dx) < 1 && Math.abs(it.dy) < 1) return;
+        it.e.style.transform = 'translate(' + it.dx.toFixed(1) + 'px,' + it.dy.toFixed(1) + 'px)';
+        moved.push(it.e);
+      });
+      body.classList.add('mo-swap');
+      if (!moved.length) return;
+      void body.offsetWidth;  // 前の位置を一度確定させてから外す（transition で今の位置へ動く）
+      body.classList.add('mo-fl');
+      moved.forEach(function (e) { e.style.removeProperty('transform'); });
+    }
+    function select(sel, trigger) {
+      var from = st.sel;
+      act(sel ? 'sel' : 'back', trigger || null, function () {
+        st.sel = sel;
+        hideTip();
+        renderSelbar(); renderScatter(); renderHeat(); renderList(); markOn();
+      }, from);
+      if (trigger) return;
+      var r = secHm.getBoundingClientRect();
+      if (sel && r.top < 0) secHm.scrollIntoView({ block: 'start' });
+    }
+    function setSub(pick, trigger) {
+      if (!st.sel) return;
+      act('sub', trigger || null, function () {
+        var next = Object.assign({}, st.sel);
+        next.sub = samePick(st.sel.sub, pick) ? null : pick;
+        st.sel = next;
+        renderSelbar(); renderScatter(); renderHeat(); renderList(); markOn();
+      });
+    }
+    function setHideEx(on, where, trigger) {
+      var again = act('hide', trigger || null, function () {
+        st.hideEx = on;
+        saveHideEx(on);
+        // 隠したことで深掘りの中の選択（テーマの棒など）に入る銘柄がなくなったら、その選択だけ外す
+        if (on && st.sel && st.sel.sub && !visHeat().some(selPred(st.sel))) {
+          var next = Object.assign({}, st.sel);
+          next.sub = null;
+          st.sel = next;
+        }
+        hideTip();
+        renderSelbar(); renderScatter(); renderHeat(); renderList(); markOn();
+      });
+      // 押したボタンは描き直しで作り直されるので、同じ場所のボタンに戻す
+      if (!again) again = root.querySelector('[data-hide-ex="' + where + '"]');
+      if (again) again.focus({ preventScroll: true });
+    }
+    function renderCharts() { renderScatter(); renderHeat(); markOn(); }
+    function onKey(e) { if (e.key === 'Escape' && st.card != null) closeCard(); }
+    document.addEventListener('keydown', onKey);
+
+    // 初めの状態（アドレスの # から。銘柄カードを直接開くリンクにも使う）。深掘りは描く前に決め、1回だけ描く
+    if (opts.drill) {
+      var d0 = M.heat.some(function (s) { return s.industry === opts.drill; }) ? { kind: 'industry', name: opts.drill }
+        : M.heat.some(function (s) { return s.themes.indexOf(opts.drill) >= 0; }) ? { kind: 'theme', name: opts.drill } : null;
+      st.sel = d0 && opts.sub ? Object.assign({}, d0, { sub: { kind: 'theme', name: opts.sub } }) : d0;
+    }
+    act('load', null, function () { renderBand(); renderSelbar(); renderScatter(); renderHeat(); renderList(); renderExcluded(); });
+    W = root.clientWidth;
+    var raf = 0;
+    var ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(function () {
+      var w = root.clientWidth;
+      if (Math.abs(w - W) < 2) return;
+      W = w; cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(function () { renderCharts(); if (st.card != null) renderCard(true); });
+    }) : null;
+    if (ro) ro.observe(root);
+
+    if (opts.card) {
+      var cs = M.stocks.filter(function (s) { return s.code === String(opts.card); })[0];
+      if (cs) openCard(cs, null, true);
+      var target = opts.cardScroll && layer.querySelector(opts.cardScroll === 'forum' ? '.cd-fm' : opts.cardScroll === 'score' ? '.cd-score' : '.cd-chart');
+      var cb = layer.querySelector('.cd-body');
+      if (target && cb) cb.scrollTop = target.offsetTop - cb.offsetTop - 8;
+    }
+    return {
+      destroy: function () { if (ro) ro.disconnect(); document.removeEventListener('keydown', onKey); closing++; lockScroll(false); host.textContent = ''; },
+      select: select, openCard: function (code) { var x = M.stocks.filter(function (s) { return s.code === String(code); })[0]; if (x) openCard(x, null); }
+    };
+  }
+
+  global.ScanScreen = { mount: mount };
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
+<script>
+(function () {
+  // アドレスの # で初めの状態を開ける。銘柄カードを直接開くリンクにも使う
+  // （例 #theme=dark&view=theme&drill=情報・通信業&sub=セキュリティ&card=3297&ex=open）
+  var q = {};
+  location.hash.replace(/^#/, '').split('&').forEach(function (kv) {
+    if (!kv) return;
+    var i = kv.indexOf('='), k = i < 0 ? kv : kv.slice(0, i), v = i < 0 ? '' : kv.slice(i + 1);
+    try { q[decodeURIComponent(k)] = decodeURIComponent(v); } catch (e) { q[k] = v; }
+  });
+  if (q.theme === 'dark') document.documentElement.style.background = document.body.style.background = '#111110';
+  if (q.theme === 'light') document.documentElement.style.background = document.body.style.background = '#f4f3ef';
+  var data = JSON.parse(document.getElementById('scan-data').textContent);
+  ScanScreen.mount(document.getElementById('app'), data, {
+    theme: q.theme, view: q.view, drill: q.drill, sub: q.sub, card: q.card, cardScroll: q.cardScroll, exOpen: q.ex === 'open'
+  });
+  window.addEventListener('hashchange', function () { location.reload(); });
+})();
+</script>
+<p style="margin:16px;font-size:.85rem;opacity:.7">このページは個人の記録です。売買の判断はご自身で行ってください。</p></body>
+</html>
