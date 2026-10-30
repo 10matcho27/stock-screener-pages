@@ -1,0 +1,36 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; style-src &#x27;unsafe-inline&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;"><meta name="robots" content="noindex, nofollow"><title>stock-screener</title><style>
+:root { color-scheme: light dark; --fg: #1b1f24; --bg: #ffffff; --muted: #5b6470; --line: #d6dbe1;
+  --accent: #0b62c4; --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; --soft: #f3f5f7; }
+@media (prefers-color-scheme: dark) { :root { --fg: #e6e9ed; --bg: #14171b; --muted: #9aa4af;
+  --line: #2f363d; --accent: #58a6ff; --ok: #3fb950; --warn: #d29922; --bad: #f85149; --soft: #1d2228; } }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  color: var(--fg); background: var(--bg); line-height: 1.6; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--line); }
+header .home { font-weight: 700; color: var(--fg); text-decoration: none; }
+nav a { margin-left: 12px; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+a { color: var(--accent); }
+h1 { font-size: 1.4rem; } h2 { font-size: 1.15rem; margin-top: 1.6em; } h3 { font-size: 1rem; }
+table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; font-size: 0.9rem; }
+th, td { border: 1px solid var(--line); padding: 4px 8px; white-space: nowrap; text-align: left; }
+th { background: var(--soft); }
+.status td:last-child { white-space: normal; min-width: 16em; }
+.state-ok { color: var(--ok); font-weight: 700; }
+.state-skipped, .state-none { color: var(--muted); font-weight: 700; }
+.state-failed { color: var(--bad); font-weight: 700; }
+.state-waiting, .state-running { color: var(--warn); font-weight: 700; }
+.flash { padding: 8px 12px; background: var(--soft); border-left: 4px solid var(--accent); }
+.error { padding: 8px 12px; background: var(--soft); border-left: 4px solid var(--bad); color: var(--bad); }
+form { display: flex; flex-wrap: wrap; gap: 8px; }
+input[type=text] { flex: 1 1 14em; padding: 8px; font-size: 1rem; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--bg); color: var(--fg); }
+button { padding: 8px 16px; font-size: 1rem; border: 0; border-radius: 6px; background: var(--accent);
+  color: #fff; cursor: pointer; }
+.hint, .crumb { color: var(--muted); font-size: 0.85rem; }
+.view-links { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+a.button { display: inline-block; padding: 12px 24px; font-size: 1.1rem; font-weight: 700; border-radius: 6px;
+  background: var(--accent); color: #fff; text-decoration: none; }
+code { font-size: 0.85rem; }
+footer{max-width:1100px;margin:0 auto;padding:0 16px 24px}</style></head><body><header><a class="home" href="index.html">stock-screener</a><nav><a href="index.html">トップ</a><a href="reports.html">一覧</a></nav></header><main><h1>最新のレポート</h1><ul class="links"><li>最新の scan: <a href="2026-10-30_2340_scan-graph.html">2026-10-30 23:40</a></li><li>最新の crash（暴落株）: <a href="2026-10-30_1650_crash-graph.html">2026-10-30 16:50</a></li><li>最新の review: <a href="2026-10-30_2351_review-graph.html">2026-10-30 23:51</a></li><li><a href="reports.html">レポートの一覧</a></li></ul><p class="hint">更新: 2026-10-30 23:51</p></main><footer><p class="hint">このページは個人の記録です。売買の判断はご自身で行ってください。</p></footer></body></html>
